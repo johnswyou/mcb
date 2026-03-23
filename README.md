@@ -1,5 +1,7 @@
 # mcb
 
+[![Documentation Status](https://readthedocs.org/projects/mcb/badge/?version=latest)](https://mcb.readthedocs.io/en/latest/?badge=latest)
+
 `mcb` packages Hsu's Multiple Comparisons with the Best procedures for the unbalanced one-way normal model.
 
 ## Install
@@ -66,14 +68,13 @@ See `examples/demo_hsu_mcb_sat.py` for the SAT-score example.
 
 The Sphinx documentation source lives in `docs/` and is configured for Read the Docs through `.readthedocs.yaml`.
 The source repository is https://github.com/johnswyou/mcb.
+The hosted documentation is available at https://mcb.readthedocs.io/en/latest/.
 Build it locally with:
 
 ```bash
 python3 -m pip install -e '.[docs,plot]'
 python3 -m sphinx -b html docs docs/_build/html
 ```
-
-Once the repository is imported into Read the Docs, add the hosted documentation URL and badge here.
 
 ## Tests
 

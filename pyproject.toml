@@ -28,6 +28,7 @@ test = [
 [project.urls]
 Repository = "https://github.com/johnswyou/mcb"
 Issues = "https://github.com/johnswyou/mcb/issues"
+Documentation = "https://mcb.readthedocs.io/en/latest/"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mcb"]
