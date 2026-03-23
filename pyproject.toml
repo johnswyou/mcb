@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcb"
+version = "0.1.0"
+description = "Hsu's multiple comparisons with the best for the unbalanced one-way model."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "scipy",
+]
+
+[project.optional-dependencies]
+plot = ["matplotlib"]
+test = [
+  "matplotlib",
+  "pytest",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcb"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
