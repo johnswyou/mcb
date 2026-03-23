@@ -17,7 +17,26 @@ def plot_simultaneous_intervals(
     title: str | None = None,
     figsize: tuple[float, float] = (8.5, 4.8),
 ) -> plt.Axes:
-    """Plot simultaneous confidence intervals horizontally."""
+    """Plot simultaneous confidence intervals horizontally.
+
+    Parameters
+    ----------
+    result:
+        Result returned by a constrained or unconstrained MCB procedure.
+    ax:
+        Existing Matplotlib axes to draw on. A new figure and axes are created
+        when omitted.
+    title:
+        Optional plot title. A default title is derived from the result when
+        omitted.
+    figsize:
+        Figure size used only when a new figure is created.
+
+    Returns
+    -------
+    matplotlib.axes.Axes
+        Axes containing the rendered interval plot.
+    """
     if ax is None:
         _, ax = plt.subplots(figsize=figsize)
 

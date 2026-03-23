@@ -14,11 +14,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+docs = [
+  "myst-parser>=4",
+  "sphinx>=8",
+  "sphinx-rtd-theme>=3",
+]
 plot = ["matplotlib"]
 test = [
   "matplotlib",
   "pytest",
 ]
+
+[project.urls]
+Repository = "https://github.com/johnswyou/mcb"
+Issues = "https://github.com/johnswyou/mcb/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mcb"]

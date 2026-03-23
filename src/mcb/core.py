@@ -99,16 +99,42 @@ class OneWaySummary:
 
     @property
     def k(self) -> int:
+        """Number of treatment arms in the summary."""
         return len(self.means)
 
     @property
     def sigma_hat(self) -> float:
+        """Estimated common standard deviation, ``sqrt(mse)``."""
         return float(np.sqrt(self.mse))
 
 
 @dataclass(frozen=True)
 class MCBResult:
-    """Output of a constrained or unconstrained MCB analysis."""
+    """Output of a constrained or unconstrained MCB analysis.
+
+    Attributes
+    ----------
+    method:
+        Human-readable description of the procedure that produced the result.
+    parameter:
+        Target parameter family, for example ``mu_i - max_{j != i} mu_j``.
+    alpha:
+        Familywise error rate used to construct the simultaneous intervals.
+    labels:
+        Variant labels in display order.
+    estimates:
+        Point estimates for the target parameter, one per variant.
+    lower:
+        Simultaneous lower bounds for the target parameter.
+    upper:
+        Simultaneous upper bounds for the target parameter.
+    critical_values:
+        Mapping from label to the arm-specific critical value used internally.
+    candidate_best_set:
+        Labels that remain compatible with being best under the selected method.
+    notes:
+        Additional interpretation details about the result.
+    """
 
     method: str
     parameter: str
@@ -122,6 +148,7 @@ class MCBResult:
     notes: str = ""
 
     def as_dict(self) -> dict[str, dict[str, float | str]]:
+        """Return the interval table keyed by variant label."""
         rows: dict[str, dict[str, float | str]] = {}
         for label, est, lo, hi in zip(self.labels, self.estimates, self.lower, self.upper):
             rows[label] = {
@@ -142,6 +169,11 @@ def pooled_mse_from_samples(samples: Mapping[str, Sequence[float]]) -> float:
     ----------
     samples:
         Dict mapping variant label -> iterable of observations.
+
+    Returns
+    -------
+    float
+        Pooled within-group mean squared error.
     """
     if len(samples) < 2:
         raise ValueError("Need at least two variants to compute pooled MSE.")
@@ -166,6 +198,11 @@ def pooled_mse_from_group_stats(ns: Sequence[int], variances: Sequence[float]) -
         Sample sizes per variant.
     variances:
         Per-variant sample variances computed with denominator ``n_i - 1``.
+
+    Returns
+    -------
+    float
+        Pooled within-group mean squared error.
     """
     ns = tuple(int(n) for n in ns)
     variances = tuple(float(v) for v in variances)
@@ -195,6 +232,7 @@ def summarize_from_samples(samples: Mapping[str, Sequence[float]]) -> OneWaySumm
     Returns
     -------
     OneWaySummary
+        Sample means, group sizes, pooled MSE, and pooled error degrees of freedom.
     """
     if len(samples) < 2:
         raise ValueError("Need at least two variants for MCB.")
@@ -218,7 +256,24 @@ def summarize_from_means_ns_and_mse(
     mse: float,
     labels: Sequence[str] | None = None,
 ) -> OneWaySummary:
-    """Create a OneWaySummary from means, sample sizes, and pooled MSE."""
+    """Create a ``OneWaySummary`` from means, sample sizes, and pooled MSE.
+
+    Parameters
+    ----------
+    means:
+        Per-arm sample means.
+    ns:
+        Per-arm sample sizes.
+    mse:
+        Pooled within-arm mean squared error.
+    labels:
+        Optional display labels. Default labels are generated when omitted.
+
+    Returns
+    -------
+    OneWaySummary
+        Sample means, group sizes, pooled MSE, and pooled error degrees of freedom.
+    """
     means = tuple(float(x) for x in means)
     ns = tuple(int(n) for n in ns)
     if len(means) != len(ns):
@@ -383,7 +438,7 @@ def _illinois_root(
 # -----------------------------------------------------------------------------
 @lru_cache(maxsize=512)
 def constrained_critical_value(lambdas: tuple[float, ...], nu: float, alpha: float) -> float:
-    """Compute d^i for constrained MCB / one-sided MCC.
+    """Compute the constrained MCB critical value ``d^i``.
 
     Parameters
     ----------
@@ -393,6 +448,16 @@ def constrained_critical_value(lambdas: tuple[float, ...], nu: float, alpha: flo
         Error degrees of freedom.
     alpha:
         Familywise error rate.
+
+    Returns
+    -------
+    float
+        One-sided Dunnett-with-control critical value for the focal arm.
+
+    Notes
+    -----
+    When there are only two arms, the result reduces to the upper ``alpha``
+    quantile of the corresponding ``t`` distribution.
     """
     lambdas_arr = np.asarray(lambdas, dtype=float)
     k = lambdas_arr.size + 1
@@ -411,7 +476,27 @@ def constrained_critical_value(lambdas: tuple[float, ...], nu: float, alpha: flo
 
 @lru_cache(maxsize=512)
 def unconstrained_edwards_hsu_critical_value(lambdas: tuple[float, ...], nu: float, alpha: float) -> float:
-    """Compute |d|^i for the unbalanced Edwards-Hsu method / two-sided MCC."""
+    """Compute the Edwards-Hsu critical value ``|d|^i``.
+
+    Parameters
+    ----------
+    lambdas:
+        Tuple of lambda_ij = (1 + n_i / n_j)^(-1/2) over j != i.
+    nu:
+        Error degrees of freedom.
+    alpha:
+        Familywise error rate.
+
+    Returns
+    -------
+    float
+        Two-sided Dunnett-with-control critical value for the focal arm.
+
+    Notes
+    -----
+    When there are only two arms, the result reduces to the upper ``alpha / 2``
+    quantile of the corresponding ``t`` distribution.
+    """
     lambdas_arr = np.asarray(lambdas, dtype=float)
     k = lambdas_arr.size + 1
     nu_eff = _effective_nu(float(nu))
@@ -442,11 +527,23 @@ def _lambdas_for_control(summary: OneWaySummary, control_index: int) -> tuple[fl
 def constrained_mcb(summary: OneWaySummary, alpha: float = 0.05) -> MCBResult:
     """Hsu's constrained MCB for the unbalanced one-way model.
 
-    The target parameters are
-        theta_i = mu_i - max_{j != i} mu_j.
+    The target parameter family is ``theta_i = mu_i - max_{j != i} mu_j``.
 
     A positive lower bound is impossible; each interval contains 0 when the
     corresponding arm might still be best.
+
+    Parameters
+    ----------
+    summary:
+        Pooled one-way summary statistics.
+    alpha:
+        Familywise error rate for the simultaneous intervals.
+
+    Returns
+    -------
+    MCBResult
+        Constrained MCB estimates, simultaneous bounds, critical values, and
+        the candidate-best set.
     """
     k = summary.k
     means = np.asarray(summary.means, dtype=float)
@@ -512,11 +609,24 @@ def constrained_mcb(summary: OneWaySummary, alpha: float = 0.05) -> MCBResult:
 def unconstrained_mcb_edwards_hsu(summary: OneWaySummary, alpha: float = 0.05) -> MCBResult:
     """Unbalanced Edwards-Hsu unconstrained MCB.
 
-    The direct target parameters are
-        eta_i = mu_i - max_j mu_j,
-    which are always <= 0 and measure how far variant i is below the global best.
+    The direct target parameter family is ``eta_i = mu_i - max_j mu_j``, which
+    is always ``<= 0`` and measures how far variant ``i`` is below the global
+    best.
 
     This is the cleanest direct unconstrained MCB construction in Hsu's chapter.
+
+    Parameters
+    ----------
+    summary:
+        Pooled one-way summary statistics.
+    alpha:
+        Familywise error rate for the simultaneous intervals.
+
+    Returns
+    -------
+    MCBResult
+        Edwards-Hsu estimates, simultaneous bounds, critical values, and the
+        candidate-best screening set.
     """
     k = summary.k
     means = np.asarray(summary.means, dtype=float)
@@ -577,6 +687,15 @@ def unconstrained_mcb_edwards_hsu(summary: OneWaySummary, alpha: float = 0.05) -
 # Pretty-print helper for demos
 # -----------------------------------------------------------------------------
 def print_result(result: MCBResult, digits: int = 4) -> None:
+    """Pretty-print an ``MCBResult`` for demos or exploratory work.
+
+    Parameters
+    ----------
+    result:
+        The result object to display.
+    digits:
+        Number of decimal places used for interval endpoints and critical values.
+    """
     print(result.method)
     print(f"Parameter: {result.parameter}")
     print(f"Familywise alpha: {result.alpha}")

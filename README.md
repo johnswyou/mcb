@@ -62,6 +62,19 @@ from mcb.plotting import plot_simultaneous_intervals
 
 See `examples/demo_hsu_mcb_sat.py` for the SAT-score example.
 
+## Documentation
+
+The Sphinx documentation source lives in `docs/` and is configured for Read the Docs through `.readthedocs.yaml`.
+The source repository is https://github.com/johnswyou/mcb.
+Build it locally with:
+
+```bash
+python3 -m pip install -e '.[docs,plot]'
+python3 -m sphinx -b html docs docs/_build/html
+```
+
+Once the repository is imported into Read the Docs, add the hosted documentation URL and badge here.
+
 ## Tests
 
 The regression suite uses `pytest` and validates the critical value implementation against Appendix E tables extracted from Hsu (1996).

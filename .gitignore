@@ -6,4 +6,4 @@ build/
 dist/
 examples/output/
 multiple_comparisons_hsu_1996/
-docs/
+docs/_build/
