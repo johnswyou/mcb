@@ -1,6 +1,8 @@
-# Example workflow
+# Example Workflow
 
-The repository includes a worked SAT-score example in `examples/demo_hsu_mcb_sat.py`. It mirrors the summary-statistics workflow used in Hsu's chapter and shows both supported MCB procedures.
+The repository includes a runnable SAT-score example in `examples/demo_hsu_mcb_sat.py`. It mirrors the summary-statistics workflow from Hsu's Chapter 4 and shows both supported MCB procedures.
+
+For the mathematical walk-through and interpretation of the numbers, see [SAT worked example](sat_example.md).
 
 ## Reproduce the SAT example
 
@@ -46,3 +48,5 @@ Running the example script directly will save both constrained and unconstrained
 ```bash
 python3 examples/demo_hsu_mcb_sat.py
 ```
+
+If Matplotlib cannot write to its default cache directory in a restricted environment, set `MPLCONFIGDIR` to a writable directory before running the script.
