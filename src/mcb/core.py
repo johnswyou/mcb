@@ -10,12 +10,15 @@ This module implements:
        eta_i = mu_i - max_j mu_j
    using Hsu's unbalanced-design extension.
 
-The critical-value computation follows Appendix D.2 of Hsu (1996):
+The critical-value computation follows the formulas and quadrature strategy
+in Appendix D.2 of Hsu (1996):
 - 48-point Gauss-Hermite quadrature for the inside integral.
 - 48-point Gauss-Legendre quadrature for the outside integral.
 - The outer integral on (0, infinity) is truncated to the central
   1 - 1e-6 probability interval of S = hat(sigma) / sigma.
-- For nu > 240, the code switches to the infinite-df approximation.
+- For nu >= 1e6, the code uses the infinite-df approximation because the
+  finite-df correction is below the numerical solver tolerance and the finite
+  quadrature path becomes unstable for extremely concentrated S.
 - Root-finding uses the Illinois variant of regula falsi, matching the
   bracketing philosophy described by Hsu.
 
@@ -29,7 +32,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
-from math import gamma, inf, isinf, sqrt
+from math import inf, isinf, lgamma, log, sqrt
 from typing import Mapping, Sequence
 
 import math
@@ -61,7 +64,7 @@ GAUSS_LEGENDRE_POINTS = 48
 OUTER_TRUNCATION_MASS = 1.0 - 1e-6
 PROB_TOL = 2e-5
 HALF_WIDTH_TOL = 5e-4
-INF_DF_SWITCH = 240
+ASYMPTOTIC_NU_SWITCH = 1_000_000.0
 MAX_ROOT_ITERS = 200
 
 _GH_X, _GH_W = hermgauss(GAUSS_HERMITE_POINTS)
@@ -308,7 +311,7 @@ def _negative_part_magnitude(x: float | np.ndarray) -> float | np.ndarray:
 
 
 def _effective_nu(nu: float) -> float:
-    return inf if nu > INF_DF_SWITCH else nu
+    return inf if isinf(nu) or nu >= ASYMPTOTIC_NU_SWITCH else nu
 
 
 def _t_upper_quantile(beta: float, nu: float) -> float:
@@ -319,8 +322,8 @@ def _t_upper_quantile(beta: float, nu: float) -> float:
 
 def _gamma_sigmahat_over_sigma_density(s: np.ndarray, nu: float) -> np.ndarray:
     # Density of S = sqrt(ChiSquare_nu / nu), s > 0.
-    coef = 2.0 * (nu / 2.0) ** (nu / 2.0) / gamma(nu / 2.0)
-    return coef * np.power(s, nu - 1.0) * np.exp(-nu * np.square(s) / 2.0)
+    log_coef = log(2.0) + (nu / 2.0) * log(nu / 2.0) - lgamma(nu / 2.0)
+    return np.exp(log_coef + (nu - 1.0) * np.log(s) - nu * np.square(s) / 2.0)
 
 
 def _central_s_interval(nu: float) -> tuple[float, float]:

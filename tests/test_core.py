@@ -5,6 +5,7 @@ import math
 import pytest
 from scipy.stats import t
 
+import mcb.core as core
 from mcb import (
     MCBResult,
     constrained_critical_value,
@@ -145,6 +146,44 @@ def test_unconstrained_mcb_two_variant_case_matches_expected_bounds() -> None:
     assert result.lower == pytest.approx((0.0, -1.0 - critical_value * standard_error))
     assert result.upper == pytest.approx((0.0, -max(1.0 - critical_value * standard_error, 0.0)))
     assert result.candidate_best_set == ("A",)
+
+
+def test_constrained_sat_example_matches_hsu_finite_df_values() -> None:
+    summary = summarize_from_means_ns_and_mse(
+        means=[619.0, 629.0, 575.0],
+        ns=[103, 31, 122],
+        mse=82.52**2,
+        labels=["Computer science", "Engineering", "Other"],
+    )
+
+    result = constrained_mcb(summary, alpha=0.10)
+
+    assert tuple(result.critical_values.values()) == pytest.approx(
+        (1.605, 1.505, 1.612),
+        abs=0.002,
+    )
+    assert result.lower == pytest.approx((-35.44, -17.14, -78.98), abs=0.03)
+    assert result.upper == pytest.approx((17.14, 35.44, 0.0), abs=0.03)
+    assert result.candidate_best_set == ("Computer science", "Engineering")
+
+
+def test_effective_nu_uses_high_df_asymptotic_switch() -> None:
+    just_below_switch = core.ASYMPTOTIC_NU_SWITCH - 1.0
+
+    assert core._effective_nu(just_below_switch) == pytest.approx(just_below_switch)
+    assert math.isinf(core._effective_nu(core.ASYMPTOTIC_NU_SWITCH))
+    assert math.isinf(core._effective_nu(1.0e12))
+    assert math.isinf(core._effective_nu(math.inf))
+
+
+def test_critical_values_use_asymptotic_value_for_very_large_finite_df() -> None:
+    lambdas = (1.0 / math.sqrt(2.0),) * 2
+
+    for func in (constrained_critical_value, unconstrained_edwards_hsu_critical_value):
+        finite_value = func(lambdas, 1.0e12, 0.05)
+        asymptotic_value = func(lambdas, math.inf, 0.05)
+
+        assert finite_value == pytest.approx(asymptotic_value)
 
 
 def test_print_result_formats_output(capsys: pytest.CaptureFixture[str]) -> None:

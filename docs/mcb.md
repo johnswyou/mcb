@@ -153,6 +153,9 @@ The package computes both critical values numerically from Hsu's Appendix D.2 co
 - 48-point Gauss-Hermite quadrature for the inner normal integral.
 - 48-point Gauss-Legendre quadrature for the outer integral over $S = \hat{\sigma} / \sigma$.
 - Root bracketing from $t$-distribution quantiles with an Illinois/regula falsi solver.
-- A switch to the infinite-degrees-of-freedom approximation when $\nu > 240`.
+- The infinite-degrees-of-freedom approximation when $\nu = \infty$ is supplied explicitly
+  or when finite $\nu \geq 10^6$ makes the finite-$\nu$ correction negligible relative
+  to the solver tolerance; finite $\nu$ below this high-df stability switch are not
+  collapsed to Hsu's historical `dinfnu = 240` code shortcut.
 
 See [MCB critical values](mcb_critical_values.md) for the formulas used by `constrained_critical_value` and `unconstrained_edwards_hsu_critical_value`.

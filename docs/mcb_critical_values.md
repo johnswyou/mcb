@@ -156,10 +156,14 @@ again using the Illinois method for the final solve.
 
 The numerical integration strategy mirrors Hsu's Appendix D.2:
 
-- For finite $\nu$, the inner normal integral is evaluated with 48-point Gauss-Hermite quadrature.
+- For finite $\nu < 10^6$, the inner normal integral is evaluated with 48-point Gauss-Hermite quadrature.
 - The outer integral over $S = \hat{\sigma} / \sigma$ is evaluated with 48-point Gauss-Legendre quadrature.
 - The outer domain $(0, \infty)$ is truncated to the central $1 - 10^{-6}$ probability interval of $S$.
-- When $\nu > 240$, the code switches to the infinite-degrees-of-freedom approximation and treats $S \equiv 1$.
+- When $\nu = \infty$ is supplied explicitly, or when finite $\nu \geq 10^6$, the code
+  uses the infinite-degrees-of-freedom approximation and treats $S \equiv 1$ because
+  the finite-$\nu$ correction is negligible relative to the solver tolerance; finite
+  $\nu$ below this high-df stability switch are not collapsed to Hsu's historical
+  `dinfnu = 240` code shortcut.
 
 ## Practical interpretation
 
