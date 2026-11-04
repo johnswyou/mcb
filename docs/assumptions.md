@@ -4,7 +4,7 @@ The simultaneous coverage statements in `mcb` are finite-sample results for Hsu'
 
 ## Required Model Conditions
 
-The exact coverage claims assume:
+The coverage guarantee, joint coverage of at least $1-\alpha$ (Hsu's Theorems 4.1.2 and 4.2.6), assumes:
 
 - independent observations within and across arms;
 - a common variance $\sigma^2$ across arms;
@@ -25,7 +25,7 @@ For revenue/session and similar metrics, treat the output as most defensible whe
 Hsu's derivations allow ties to be broken arbitrarily for proof purposes. Interpretation depends on your scientific stance:
 
 - If ties are treated as practically impossible, an arm with constrained lower bound 0 can be interpreted as selected as best.
-- If ties are possible, a bound at 0 means the arm remains compatible with being one of the best arms.
+- If ties are possible, an arm with constrained lower bound 0 can be interpreted as one of the best arms (Hsu, Section 4.1).
 
 Either way, a candidate-best set is a confidence-set object, not a probability ranking.
 

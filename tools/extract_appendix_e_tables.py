@@ -49,6 +49,15 @@ def parse_appendix_e_tables(markdown_text: str) -> OrderedDict[str, dict]:
             raise ValueError(f"Could not parse Appendix E heading: {line!r}")
 
         table_id, quantity, method, alpha = m.group(1), m.group(2).strip(), m.group(3).strip(), m.group(4)
+        if alpha is None:
+            # Some OCR passes put alpha on its own line ("α = 0.05" or "$$\alpha = 0.05$$") before the table.
+            for next_line in lines[idx + 1 :]:
+                if next_line.startswith("|"):
+                    break
+                alpha_match = re.search(r"(?:α|\\alpha)\s*=\s*([0-9.]+)", next_line)
+                if alpha_match:
+                    alpha = alpha_match.group(1)
+                    break
         _, _, header_row, data_lines, _ = parse_table_block(lines, idx)
         k_values = [int(x) for x in parse_pipe_row(header_row)[1:]]
 

@@ -20,20 +20,20 @@ The simultaneous intervals are constrained to contain 0. This reflects the role 
 
 ## Arm-Specific Critical Values
 
-For each focal arm $i$, let $d_i$ be the one-sided Dunnett-with-control critical value computed as if arm $i$ were the control. It is chosen so that
+For each focal arm $i$, let $d^i$ be the one-sided Dunnett-with-control critical value computed as if arm $i$ were the control. It is chosen so that
 
 $$
 P\left\{
 \hat{\mu}_i - \mu_i
 >
 \hat{\mu}_j - \mu_j
-- d_i\hat{\sigma}\sqrt{n_i^{-1} + n_j^{-1}}
+- d^i\hat{\sigma}\sqrt{n_i^{-1} + n_j^{-1}}
 \text{ for all } j \neq i
 \right\}
 = 1-\alpha.
 $$
 
-In an unbalanced design, $d_i$ depends on the full sample-size pattern through the values $\lambda_{ij}$, so the critical value can differ by arm.
+In an unbalanced design, $d^i$ depends on the full sample-size pattern through the values $\lambda_{ij}$, so the critical value can differ by arm.
 
 ## Upper Bounds and Candidate-Best Set
 
@@ -46,7 +46,7 @@ D_i^+
 \min_{j \neq i}
 \left\{
 \hat{\mu}_i - \hat{\mu}_j
-+ d_i\hat{\sigma}\sqrt{n_i^{-1} + n_j^{-1}}
++ d^i\hat{\sigma}\sqrt{n_i^{-1} + n_j^{-1}}
 \right\}
 \right]^+,
 $$
@@ -73,13 +73,13 @@ D_i^- =
 \min_{j \in G,\ j \neq i}
 \left\{
 \hat{\mu}_i - \hat{\mu}_j
-- d_j\hat{\sigma}\sqrt{n_i^{-1} + n_j^{-1}}
+- d^j\hat{\sigma}\sqrt{n_i^{-1} + n_j^{-1}}
 \right\},
 & \text{otherwise.}
 \end{cases}
 $$
 
-The critical value in the lower bound is $d_j$, not $d_i$, because the possible best arm $j$ is treated as the control in that comparison.
+The critical value in the lower bound is $d^j$, not $d^i$, because the possible best arm $j$ is treated as the control in that comparison.
 
 The result is a set of simultaneous intervals
 
@@ -95,7 +95,8 @@ with joint coverage at least $1-\alpha$ for all $\theta_i$ under the one-way nor
 Read the constrained interval against 0:
 
 - If the upper bound is 0, the arm is ruled out as best.
-- If the interval includes values near 0, the arm could be best or close to best.
+- If the upper bound is positive (the arm is in $G$), the arm could be best.
+- If the lower bound is close to 0, the arm is close to the best.
 - If $G$ contains exactly one arm, that arm alone remains in the constrained candidate-best set.
 
-Constrained MCB does not provide a positive lower bound on how much the selected best arm exceeds the others. Hsu's point is that giving up that lower-bound claim produces sharper inference for identifying arms that are not best.
+Constrained MCB does not provide a positive lower bound on how much the selected best arm exceeds the others. Hsu's point is that by giving up lower bounds on how much the arms identified as not best fall below the true best, constrained MCB achieves sharper inference than unconstrained MCB.

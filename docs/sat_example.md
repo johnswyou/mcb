@@ -47,7 +47,7 @@ constrained = constrained_mcb(summary, alpha=0.10)
 
 The finite-df constrained critical values are:
 
-| Arm | $d_i$ |
+| Arm | $d^i$ |
 | --- | ---: |
 | Computer science | 1.605 |
 | Engineering | 1.505 |
@@ -83,7 +83,7 @@ unconstrained = unconstrained_mcb_edwards_hsu(summary, alpha=0.10)
 
 The package computes finite-df critical values because $\nu = 253 < 10^6$:
 
-| Arm | $|d|_i$ |
+| Arm | $|d|^i$ |
 | --- | ---: |
 | Computer science | 1.942 |
 | Engineering | 1.860 |
@@ -100,7 +100,7 @@ are:
 | Arm | Estimate | Lower | Upper |
 | --- | ---: | ---: | ---: |
 | Computer science | -10.00 | -41.44 | 0.00 |
-| Engineering | 0.00 | -22.83 | 0.00 |
+| Engineering | 0.00 | -22.82 | 0.00 |
 | Other | -54.00 | -84.87 | -22.56 |
 
 The Edwards-Hsu candidate-best set is again:
@@ -117,10 +117,12 @@ Appendix D.2 describes Hsu's original computer code as switching to the infinite
 
 For the Edwards-Hsu SAT example, the infinite-df shortcut gives the textbook's displayed critical values:
 
-| Arm | Historical $\nu=\infty$ $|d|_i$ | Package finite-df $|d|_i$ |
+| Arm | Historical $\nu=\infty$ $|d|^i$ | Package finite-df $|d|^i$ |
 | --- | ---: | ---: |
 | Computer science | 1.933 | 1.942 |
 | Engineering | 1.852 | 1.860 |
 | Other | 1.937 | 1.946 |
+
+The textbook's constrained example in Section 4.1.5 does not follow this pattern. Hsu's text says $\nu = 253$ was taken as $\infty$ there too, but the printed constrained critical values (1.605, 1.505, 1.612) are the finite-df values; the $\nu = \infty$ values are 1.600, 1.500 and 1.606. The book is therefore inconsistent between its two SAT examples: the package reproduces the printed constrained example, and differs slightly from the printed Edwards-Hsu example unless $\nu = \infty$ is used. The test suite checks both: the constrained example at $\nu = 253$ and the Edwards-Hsu example at $\nu = \infty$.
 
 The finite-df intervals are slightly wider. This is intentional: finite $\nu$ below the package's high-df stability switch is not collapsed to Hsu's `dinfnu = 240` approximation.

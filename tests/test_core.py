@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import math
 
 import pytest
@@ -158,12 +159,36 @@ def test_constrained_sat_example_matches_hsu_finite_df_values() -> None:
 
     result = constrained_mcb(summary, alpha=0.10)
 
+    # Hsu's printed d^i match nu = 253, although Section 4.1.5 says nu was taken as infinite.
     assert tuple(result.critical_values.values()) == pytest.approx(
         (1.605, 1.505, 1.612),
         abs=0.002,
     )
     assert result.lower == pytest.approx((-35.44, -17.14, -78.98), abs=0.03)
     assert result.upper == pytest.approx((17.14, 35.44, 0.0), abs=0.03)
+    assert result.candidate_best_set == ("Computer science", "Engineering")
+
+
+def test_unconstrained_sat_example_matches_hsu_infinite_df_values() -> None:
+    # Hsu's Section 4.2.5 values use nu = 253 taken as infinite (Appendix D.2 switches when nu > 240).
+    summary = dataclasses.replace(
+        summarize_from_means_ns_and_mse(
+            means=[619.0, 629.0, 575.0],
+            ns=[103, 31, 122],
+            mse=82.52**2,
+            labels=["Computer science", "Engineering", "Other"],
+        ),
+        df=math.inf,
+    )
+
+    result = unconstrained_mcb_edwards_hsu(summary, alpha=0.10)
+
+    assert tuple(result.critical_values.values()) == pytest.approx(
+        (1.933, 1.852, 1.937),
+        abs=0.002,
+    )
+    assert result.lower == pytest.approx((-41.31, -22.68, -84.74), abs=0.03)
+    assert result.upper == pytest.approx((0.0, 0.0, -22.65), abs=0.03)
     assert result.candidate_best_set == ("Computer science", "Engineering")
 
 
