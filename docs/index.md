@@ -2,7 +2,7 @@
 
 `mcb` implements Hsu's Multiple Comparisons with the Best (MCB) procedures for the unbalanced one-way normal model.
 
-The package is organized around two inferential tasks:
+The package is organized around two inferential tasks, plus planning the experiment:
 
 - `constrained_mcb`: simultaneous intervals for $\mu_i - \max_{j \neq i} \mu_j$ and a candidate-best set.
 - `unconstrained_mcb_edwards_hsu`: Edwards-Hsu simultaneous intervals for $\mu_i - \max_j \mu_j$, the gap from arm $i$ to the global best.

@@ -358,7 +358,7 @@ def _outer_integral(inside_for_s: Callable[[float], float], nu: float, s_upper: 
         if isinf(nu):  # sigma known: S == 1
             return h1 if s_upper >= 1.0 else 0.0
         # Not a step function: at nu ~ 1e6, S still has sd ~ 7e-4.
-        return h1 * float(chi2.cdf(nu * s_upper**2, df=nu))
+        return h1 * float(chi2.cdf(nu * s_upper * s_upper, df=nu))
 
     a, b = _central_s_interval(nu_eff)
     b = min(b, s_upper)
@@ -746,18 +746,21 @@ def constrained_mcb_correct_useful_probability(
 ) -> float:
     """Hsu's probability of correct and useful inference for balanced constrained MCB.
 
-    Computes Hsu (1996), Theorem C.2.1, Eq. (C.3): the probability that the
-    constrained MCB intervals from a balanced experiment with ``n``
-    observations per arm cover their targets and have half-width
-    ``d * sigma_hat * sqrt(2 / n)`` below ``delta_star``. When that happens:
+    Computes Hsu (1996), Theorem C.2.1, Eq. (C.3): the probability that, in a
+    balanced experiment with ``n`` observations per arm, the pivot event from
+    the proof of Theorem 4.1.1 holds and the half-width
+    ``d * sigma_hat * sqrt(2 / n)`` is below ``delta_star``. That event implies
+    the constrained MCB intervals cover their targets and are that narrow, so
+    the value is a conservative lower bound on the probability of correct and
+    useful inference. When the event happens:
 
     - every arm more than ``2 * delta_star`` below the true best gets upper
       bound 0, so it leaves the candidate-best set;
     - the sample-best arm is correctly asserted to be within ``delta_star``
       of the true best.
 
-    The value is a conservative lower bound on the probability of that event
-    and is always below ``1 - alpha``.
+    The value is at most ``1 - alpha``, up to the critical-value solver
+    tolerance, and approaches it as ``n`` grows.
 
     Parameters
     ----------
@@ -788,15 +791,17 @@ def unconstrained_mcb_edwards_hsu_correct_useful_probability(
     Hsu (1996), Appendix C, sizes Edwards-Hsu MCB with the two-sided MCC
     computation, Eq. (C.5): the probability that the pivot event of Theorem
     4.2.3 holds and the half-width ``|d| * sigma_hat * sqrt(2 / n)`` is below
-    ``delta_star``. When that happens:
+    ``delta_star``. That event implies the Edwards-Hsu intervals cover their
+    targets and are that narrow, so the value is a conservative lower bound on
+    the probability of correct and useful inference. When the event happens:
 
     - every arm more than ``2 * delta_star`` below the true best leaves the
       screening set S;
     - the sample-best arm is correctly asserted to be within ``delta_star``
       of the true best.
 
-    The value is a conservative lower bound on the probability of that event
-    and is always below ``1 - alpha``. It needs more ``n`` than constrained
+    The value is at most ``1 - alpha``, up to the critical-value solver
+    tolerance, and approaches it as ``n`` grows. It needs more ``n`` than constrained
     MCB because ``|d| > d``, in exchange for two-sided bounds on each arm's
     gap to the best.
 
@@ -825,16 +830,17 @@ _MAX_DESIGN_N = 2**31
 
 
 def _smallest_n(prob: Callable[[int], float], target: float, alpha: float) -> int:
-    # P(n) only dips at the very start, and only while P < 0.02, so once P(2) < target
-    # the set {n : P(n) >= target} is upward-closed and bisection finds its minimum.
+    # Any dip in P(n) starts at n = 2: P may fall at first, then only rises. So once
+    # P(2) < target, the set {n : P(n) >= target} is upward-closed and bisection finds its minimum.
     if prob(2) >= target:
         return 2
     lo, hi = 2, 4
     while prob(hi) < target:
         if hi >= _MAX_DESIGN_N:
             raise RuntimeError(
-                f"target={target} not reached by n={hi} at alpha={alpha}; "
-                "target is too close to 1 - alpha for the critical-value tolerance."
+                f"target={target} not reached by n={hi} at alpha={alpha}: either "
+                "delta_star is too small relative to sigma, or target is within the "
+                "critical-value solver tolerance of 1 - alpha."
             )
         lo, hi = hi, 2 * hi
     while hi - lo > 1:  # invariant: prob(lo) < target <= prob(hi)

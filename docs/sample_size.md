@@ -61,7 +61,7 @@ The `*_sample_size` functions return the smallest $n \ge 2$ at which the matchin
 
 ## The $1 - \alpha$ ceiling
 
-If the outer integral ran over $(0, \infty)$, it would equal $1 - \alpha$, because that is how the critical value is defined. The cut at $u$ only removes probability, so the probability of correct and useful inference is always below $1 - \alpha$, and approaches it as $n$ grows. `target` must therefore be below $1 - \alpha$; the functions raise `ValueError` otherwise. Hsu's example uses $\alpha = 0.05$ with a target of $0.90$.
+If the outer integral ran over $(0, \infty)$, it would equal $1 - \alpha$, because that is how the critical value is defined. The cut at $u$ only removes probability, so the probability of correct and useful inference is at most $1 - \alpha$ (up to the critical-value solver's tolerance of about $2 \times 10^{-5}$), and approaches it as $n$ grows. `target` must therefore be below $1 - \alpha$; the functions raise `ValueError` otherwise. Hsu's example uses $\alpha = 0.05$ with a target of $0.90$.
 
 ## Scope
 
@@ -69,7 +69,7 @@ The sample-size computation covers balanced designs only, as Appendix C does: on
 
 ## Numerical note
 
-The critical values switch to their infinite-degrees-of-freedom form at $\nu = 10^6$ (see {doc}`mcb_critical_values`). Above the switch, the probability uses the exact chi-square distribution of $S$ rather than treating $\hat{\sigma}$ as exactly $\sigma$. The critical value just below the switch differs from the infinite-df one by slightly more than the true finite-df correction, within the solver's tolerance. As a result the probability jumps by about $10^{-3}$ across the switch for $k \ge 3$. The probability still increases with $n$, and a sample size near the switch is off by a few units out of $10^5$ to $10^6$.
+The critical values switch to their infinite-degrees-of-freedom form at $\nu = 10^6$ (see {doc}`mcb_critical_values`). Above the switch, the narrowness condition uses the exact chi-square distribution of $S$ rather than treating $\hat{\sigma}$ as exactly $\sigma$; the coverage part is evaluated at $\hat{\sigma} = \sigma$, which changes the probability by about $10^{-4}$. The critical value just below the switch differs from the infinite-df one by slightly more than the true finite-df correction, within the solver's tolerance. As a result the probability jumps by about $10^{-3}$ across the switch for $k \ge 3$. The probability still increases with $n$, and a sample size near the switch is off by a few units out of $10^5$ to $10^6$.
 
 ## Worked example
 

@@ -64,6 +64,12 @@ def test_probability_is_zero_when_margin_is_tiny(func):
     assert func(k=8, n=2, delta_star=1e-6, sigma=1.0, alpha=0.05) == 0.0
 
 
+@pytest.mark.parametrize("func", PROB_FUNCS)
+def test_probability_handles_absurdly_large_margin(func):
+    # nu = 2e7 takes the chi-square path; u ~ 1e163 would overflow u**2 as a Python float.
+    assert func(k=2, n=10**7, delta_star=1e160, sigma=1.0, alpha=0.05) == pytest.approx(0.95, abs=1e-4)
+
+
 def test_probability_accepts_numpy_integers():
     p = constrained_mcb_correct_useful_probability(
         k=np.int64(8), n=np.int64(6), delta_star=5000.0, sigma=3000.0, alpha=0.05
@@ -120,21 +126,28 @@ def test_search_matches_linear_scan(size_func, prob_func, k, ratio, target):
     assert size_func(k=k, delta_star=ratio, sigma=1.0, target=target) == expected
 
 
+@pytest.mark.parametrize(
+    ("size_func", "prob_func", "crit_func"),
+    [
+        (*PAIRS[0], core.constrained_critical_value),
+        (*PAIRS[1], core.unconstrained_edwards_hsu_critical_value),
+    ],
+)
 @pytest.mark.parametrize("k", [2, 3])
-def test_sample_size_near_asymptotic_switch(k):
+def test_sample_size_near_asymptotic_switch(size_func, prob_func, crit_func, k):
     n_sw = math.ceil(core.ASYMPTOTIC_NU_SWITCH / k) + 1  # first n with k(n-1) >= switch
-    d_inf = core.constrained_critical_value((1 / math.sqrt(2),) * (k - 1), math.inf, 0.05)
+    d_inf = crit_func((1 / math.sqrt(2),) * (k - 1), math.inf, 0.05)
     ratio = d_inf * math.sqrt(2 / n_sw)  # u ~ 1 at the switch, so P ~ 0.475
 
     def p(n):
-        return constrained_mcb_correct_useful_probability(k=k, n=n, delta_star=ratio, sigma=1.0)
+        return prob_func(k=k, n=n, delta_star=ratio, sigma=1.0)
 
     p0, p1, p2, p3 = (p(n_sw + i) for i in (-2, -1, 0, 1))
     across = p2 - p1
     assert across >= 0.0
     # Spec says "about 5x"; measured ratio is about 4-5 for k = 3, so 10x leaves headroom.
     assert across <= 10 * max(p1 - p0, p3 - p2)
-    n = constrained_mcb_sample_size(k=k, delta_star=ratio, sigma=1.0, target=0.45)
+    n = size_func(k=k, delta_star=ratio, sigma=1.0, target=0.45)
     assert p(n) >= 0.45 > p(n - 1)
 
 
@@ -161,7 +174,8 @@ def test_sample_size_validates_inputs_before_searching():
 
 
 def test_smallest_n_raises_at_cap():
-    with pytest.raises(RuntimeError, match="not reached"):
+    # A tiny margin hits the cap too, so the message must not blame only the target.
+    with pytest.raises(RuntimeError, match=re.escape("delta_star is too small relative to sigma")):
         core._smallest_n(lambda n: 0.0, target=0.5, alpha=0.05)
 
 
