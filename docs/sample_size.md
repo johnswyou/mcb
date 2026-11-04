@@ -74,10 +74,47 @@ clipped at 0. It has three factors:
 - $\hat{\sigma}$ is the pooled standard deviation estimated from the test data. It is random. Before the test, all that is known is that it will be close to $\sigma$.
 - $d$ is the MCB critical value. It depends on $k$, $\alpha$ and the error degrees of freedom $\nu = k(n-1)$, and it decreases slightly as $n$ grows. For $k = 5$ and $\alpha = 0.05$ it is about 2.16 when $n$ is large.
 
+The margin and $w$ do different jobs. $\delta^*$ and $2\delta^*$ are lines drawn before the test, measured from the true best arm. $w$ is a ruler that the test supplies, measured back from the highest sample mean. The position it reaches is called the *cut line* here: an arm whose sample mean is at or behind the cut line has an upper bound of 0 and is ruled out.
+
+The figures in this section use the true means from [Checking the plan by simulation](#checking-the-plan-by-simulation). With $\delta^* = 2$, `Control` and `A` are clearly worse, `B` is in the gray zone, and `C` and `D` are good enough.
+
+```{figure} figures/sample_size_one_test.svg
+:alt: Five arms on an axis of minutes watched, over three zones measured from the true best of 54.5. Rings show true means and dots show sample means. C leads at 53.54 and the cut line sits w = 1.98 behind it at 51.57. Control and A are behind the line and ruled out. B, C and D are kept.
+:width: 100%
+
+One simulated test with 3797 users per arm. This test was chosen because it shows the harder case, in which the true best arm does not lead.
+```
+
+`D` is the true best, but `C` has the highest sample mean. That is acceptable, because `C`'s true mean is in the good-enough zone. Both clearly worse arms are behind the cut line and are ruled out. `B` is in the gray zone, and here noise carries its sample mean past the line, so it stays in.
+
+More users shorten the ruler. The next figure repeats this test at three sample sizes, with its random errors scaled to each $n$ and $\hat{\sigma}$ held fixed, so $n$ is the only thing that changes. The bars under each panel compare $w$ with $\delta^*$.
+
+```{figure} figures/sample_size_more_users.svg
+:alt: Three panels of the same test at 1000, 3797 and 15,000 users per arm. As n grows, sample means move toward true means and w falls from 3.86 to 1.98 to 1.00, compared with a fixed delta-star of 2. At 1000, A is clearly worse but stays in. At 3797, Control and A are out. At 15,000, gray-zone arm B is out too.
+:width: 100%
+
+The same test at three sample sizes.
+```
+
+With 1000 users per arm, $w$ is wider than $\delta^*$, and `A` stays in even though it is clearly worse. With 3797, $w$ just fits inside $\delta^*$, which is what the plan buys. With 15,000, $w$ is about half of $\delta^*$, and `B` is ruled out too. Because $w$ decreases like $1/\sqrt{n}$, halving it takes about four times the users.
+
 If the intervals are correct and $w < \delta^*$, both conclusions follow:
 
-- An arm is ruled out when it trails the highest of the other sample means by at least $w$. When the intervals are correct, an arm's observed gap to the true best falls short of its true gap by less than $w$. An arm whose true gap is more than $2\delta^*$, and so more than $2w$, therefore trails by more than $w$ and is ruled out. The margin counts twice, once for the error in the observed gap and once for the width of the interval, which is why the boundary is at $2\delta^*$.
+- Every arm more than $2\delta^*$ below the best is ruled out. To be sure of that, an arm's true gap has to cover two distances. The arm must end up at least $w$ behind the leader to fall behind the cut line. It also needs a further $w$ to absorb luck, because when the intervals are correct, noise can make its gap to the true best look smaller than it really is by less than $w$. A true gap of more than $2\delta^*$ is more than $2w$, so it covers both. The leader is never behind the true best arm, so this holds whichever arm leads.
 - The observed winner trails no other arm, so its lower bound is at least $-w$, which is above $-\delta^*$. Because its interval is correct, its true shortfall from the best is less than $\delta^*$.
+
+In the running example, $w$ is about 2 minutes. `A` is truly 4.5 minutes behind the best, so even if luck hides nearly 2 of them, it still looks about 2.5 behind and is ruled out. `B` is truly 3.5 behind, so if luck hides nearly 2, it looks only about 1.5 behind and can stay in. This is why the gray zone exists: an arm between $\delta^*$ and $2\delta^*$ below the best may or may not be ruled out, so the plan promises nothing about it. $2\delta^*$ is where the guarantee starts, not where arms start to be ruled out.
+
+The next figure shows 16 simulated tests at the planned sample size. They are consecutive draws, not selected, sorted by the leader's sample mean, so the cut lines form one edge and the leaders form a second edge about $w$ to its right.
+
+```{figure} figures/sample_size_many_tests.svg
+:alt: Sixteen rows, one per simulated test, sorted by the leader's sample mean. In each row a gray bar runs from the left edge to that test's cut line, so the bar ends form one stepped edge, and the leaders form a second edge about 2 minutes to its right. Control and A sit on the gray bar in every row. B sits on it in all but two rows. D, a dark blue square, usually leads, and C, a light blue circle, leads in two rows.
+:width: 100%
+
+Sixteen simulated tests with 3797 users per arm. Each gray bar ends at that test's cut line.
+```
+
+The cut line moves with whichever arm leads, and `C` leads in 2 of these tests. `Control` and `A` are behind the line in all 16. `B` usually is, but it stays in twice, which is what the gray zone means. [Checking the plan by simulation](#checking-the-plan-by-simulation) repeats this over 1000 tests.
 
 Hsu calls the probability that the intervals are correct and $w < \delta^*$ the probability of *correct and useful* inference. `mcb` computes it, and the sample-size functions find the smallest $n$ at which it reaches `target`. Strictly, the computation uses an event, the *correctness event* (defined in [Derivations](#derivations)), that has probability exactly $1 - \alpha$ and guarantees that every interval is correct. Intervals can also be correct without it, so the computed probability is a lower bound and the plan is conservative.
 
