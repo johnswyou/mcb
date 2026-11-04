@@ -34,7 +34,6 @@ Either way, a candidate-best set is a confidence-set object, not a probability r
 `mcb` currently does not implement:
 
 - smaller-is-better formulas directly;
-- sample-size planning from Appendix C;
 - Tukey or Tukey-Kramer all-pairwise procedures;
 - comparison-with-control procedures as standalone APIs;
 - nonparametric MCB methods;
