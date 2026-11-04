@@ -66,7 +66,7 @@ See `examples/demo_hsu_mcb_sat.py` for the SAT-score example.
 
 ## Planning sample size
 
-Choose the per-arm sample size of a balanced experiment with Hsu's Appendix C computation: the smallest `n` such that, with probability at least `target`, the MCB intervals cover the truth and are narrower than the margin `delta_star`.
+Choose the per-arm sample size of a balanced experiment with Hsu's Appendix C computation: the smallest `n` such that, with probability at least `target`, every arm more than `2 * delta_star` below the true best is ruled out and the sample-best arm is correctly shown to be within `delta_star` of the true best.
 
 ```python
 from mcb import constrained_mcb_sample_size, unconstrained_mcb_edwards_hsu_sample_size

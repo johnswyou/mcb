@@ -163,3 +163,15 @@ def test_sample_size_validates_inputs_before_searching():
 def test_smallest_n_raises_at_cap():
     with pytest.raises(RuntimeError, match="not reached"):
         core._smallest_n(lambda n: 0.0, target=0.5, alpha=0.05)
+
+
+# For k = 2, constrained d = t quantile at alpha, which is 0 at alpha = 0.5 and negative above.
+@pytest.mark.parametrize("alpha", [0.5, 0.6])
+def test_probability_rejects_alpha_with_nonpositive_critical_value(alpha):
+    with pytest.raises(ValueError, match=re.escape("alpha is too large")):
+        constrained_mcb_correct_useful_probability(k=2, n=600_000, delta_star=1.0, sigma=1.0, alpha=alpha)
+
+
+def test_sample_size_rejects_alpha_with_nonpositive_critical_value():
+    with pytest.raises(ValueError, match=re.escape("alpha is too large")):
+        constrained_mcb_sample_size(k=2, delta_star=1.0, sigma=1.0, alpha=0.6, target=0.3)

@@ -734,6 +734,8 @@ def _correct_useful_probability(
     else:
         crit = constrained_critical_value(lambdas, nu, alpha)
         prob = _probability_one_sided_dunnett
+    if crit <= 0.0:
+        raise ValueError("alpha is too large: the critical value is not positive.")
     # Narrowness crit * sigma_hat * sqrt(2/n) < delta_star  <=>  S < u.
     u = sqrt(n / 2.0) * (delta_star / sigma) / crit
     return prob(np.asarray(lambdas), crit, nu, s_upper=u)
