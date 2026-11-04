@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python ≥ 3.10, numpy, scipy, pytest, Sphinx with myst-parser.
 
-**Spec:** `specs/2026-11-04-sample-size-design.md`. Read it first; it holds the math, the guarantees and the reasoning behind each decision below.
+**Spec:** `specs/completed/2026-11-04-sample-size-design.md`. Read it first; it holds the math, the guarantees and the reasoning behind each decision below.
 
 ## Global Constraints
 
