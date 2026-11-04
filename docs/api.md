@@ -18,6 +18,10 @@
    unconstrained_edwards_hsu_critical_value
    constrained_mcb
    unconstrained_mcb_edwards_hsu
+   constrained_mcb_correct_useful_probability
+   unconstrained_mcb_edwards_hsu_correct_useful_probability
+   constrained_mcb_sample_size
+   unconstrained_mcb_edwards_hsu_sample_size
    print_result
 ```
 

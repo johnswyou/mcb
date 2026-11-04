@@ -6,6 +6,7 @@ The package is organized around two inferential tasks:
 
 - `constrained_mcb`: simultaneous intervals for $\mu_i - \max_{j \neq i} \mu_j$ and a candidate-best set.
 - `unconstrained_mcb_edwards_hsu`: Edwards-Hsu simultaneous intervals for $\mu_i - \max_j \mu_j$, the gap from arm $i$ to the global best.
+- `constrained_mcb_sample_size` and `unconstrained_mcb_edwards_hsu_sample_size`: plan the per-arm sample size of a balanced experiment with Hsu's Appendix C computation.
 
 The statistical reference is Hsu, *Multiple Comparisons: Theory and Methods* (1996), Chapter 4, with critical-value computation following Appendix D.2 and regression checks against Appendix E.
 
@@ -22,6 +23,7 @@ constrained_mcb
 edwards_hsu
 sat_example
 mcb_critical_values
+sample_size
 assumptions
 example_workflow
 api
@@ -32,6 +34,7 @@ api
 - Accept either raw per-arm samples or summary statistics.
 - Compute Hsu's constrained MCB intervals for ranking plausible winners.
 - Compute unbalanced Edwards-Hsu unconstrained intervals for gaps to the global best.
+- Plan balanced experiments with Hsu's sample-size computation.
 - Plot simultaneous intervals with the optional `mcb.plotting` helper.
 - Build documentation locally with the same Sphinx configuration used by Read the Docs.
 

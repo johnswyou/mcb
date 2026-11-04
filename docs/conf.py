@@ -27,7 +27,7 @@ source_suffix = {
     ".md": "markdown",
 }
 master_doc = "index"
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "references", "Thumbs.db", ".DS_Store"]
 
 autosummary_generate = False
 autodoc_typehints = "description"

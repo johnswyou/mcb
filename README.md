@@ -64,6 +64,20 @@ from mcb.plotting import plot_simultaneous_intervals
 
 See `examples/demo_hsu_mcb_sat.py` for the SAT-score example.
 
+## Planning sample size
+
+Choose the per-arm sample size of a balanced experiment with Hsu's Appendix C computation: the smallest `n` such that, with probability at least `target`, the MCB intervals cover the truth and are narrower than the margin `delta_star`.
+
+```python
+from mcb import constrained_mcb_sample_size, unconstrained_mcb_edwards_hsu_sample_size
+
+# Hsu (1996) Appendix C.4: 8 alloys, planning sigma 3000 psi, margin delta* = 5000 psi.
+constrained_mcb_sample_size(k=8, delta_star=5000, sigma=3000, alpha=0.05, target=0.90)              # 6
+unconstrained_mcb_edwards_hsu_sample_size(k=8, delta_star=5000, sigma=3000, alpha=0.05, target=0.90)  # 8
+```
+
+See the [sample-size guide](https://mcb.readthedocs.io/en/latest/sample_size.html) for what the guarantee means.
+
 ## Documentation
 
 The Sphinx documentation source lives in `docs/` and is configured for Read the Docs through `.readthedocs.yaml`.

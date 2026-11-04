@@ -7,6 +7,7 @@ Contents:
 * `test_appendix_e_critical_values.py` — balanced-case checks for Tables E.2, E.3, E.5, and E.6
 * `test_core.py` — summary validation, synthetic result cases, and output formatting checks
 * `test_plotting.py` — smoke test for the optional plotting API
+* `test_sample_size.py` — Appendix C probabilities, book example, search and switch checks
 
 The Appendix E fixture can be regenerated from the OCR markdown with:
 
