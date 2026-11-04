@@ -5,6 +5,7 @@ from .core import (
     OneWaySummary,
     constrained_critical_value,
     constrained_mcb,
+    constrained_mcb_correct_useful_probability,
     pooled_mse_from_group_stats,
     pooled_mse_from_samples,
     print_result,
@@ -12,6 +13,7 @@ from .core import (
     summarize_from_samples,
     unconstrained_edwards_hsu_critical_value,
     unconstrained_mcb_edwards_hsu,
+    unconstrained_mcb_edwards_hsu_correct_useful_probability,
 )
 
 __all__ = [
@@ -19,6 +21,7 @@ __all__ = [
     "OneWaySummary",
     "constrained_critical_value",
     "constrained_mcb",
+    "constrained_mcb_correct_useful_probability",
     "pooled_mse_from_group_stats",
     "pooled_mse_from_samples",
     "print_result",
@@ -26,6 +29,7 @@ __all__ = [
     "summarize_from_samples",
     "unconstrained_edwards_hsu_critical_value",
     "unconstrained_mcb_edwards_hsu",
+    "unconstrained_mcb_edwards_hsu_correct_useful_probability",
 ]
 
 __version__ = "0.1.0"

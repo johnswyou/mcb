@@ -33,7 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 from math import inf, isinf, lgamma, log, sqrt
-from typing import Mapping, Sequence
+from typing import Callable, Mapping, Sequence
 
 import math
 import numpy as np
@@ -46,6 +46,7 @@ __all__ = [
     "OneWaySummary",
     "constrained_critical_value",
     "constrained_mcb",
+    "constrained_mcb_correct_useful_probability",
     "pooled_mse_from_group_stats",
     "pooled_mse_from_samples",
     "print_result",
@@ -53,6 +54,7 @@ __all__ = [
     "summarize_from_samples",
     "unconstrained_edwards_hsu_critical_value",
     "unconstrained_mcb_edwards_hsu",
+    "unconstrained_mcb_edwards_hsu_correct_useful_probability",
 ]
 
 
@@ -340,8 +342,33 @@ def _integrate_wrt_standard_normal_measure(values_at_nodes: np.ndarray) -> float
 # -----------------------------------------------------------------------------
 # Appendix D.2 quadrature-based probability evaluators
 # -----------------------------------------------------------------------------
-def _probability_one_sided_dunnett(lambdas: np.ndarray, critical_value: float, nu: float) -> float:
-    """Probability in Hsu's Eq. (4.11)."""
+def _outer_integral(inside_for_s: Callable[[float], float], nu: float, s_upper: float = inf) -> float:
+    """Integrate ``inside_for_s`` against the density of S = sigma_hat / sigma on (0, s_upper)."""
+    nu_eff = _effective_nu(nu)
+    if isinf(nu_eff):
+        h1 = inside_for_s(1.0)
+        if isinf(s_upper):
+            return h1
+        if isinf(nu):  # sigma known: S == 1
+            return h1 if s_upper >= 1.0 else 0.0
+        # Not a step function: at nu ~ 1e6, S still has sd ~ 7e-4.
+        return h1 * float(chi2.cdf(nu * s_upper**2, df=nu))
+
+    a, b = _central_s_interval(nu_eff)
+    b = min(b, s_upper)
+    if b <= a:
+        return 0.0
+    s_nodes = 0.5 * (b - a) * _GL_X + 0.5 * (b + a)
+    s_weights = 0.5 * (b - a) * _GL_W
+    density = _gamma_sigmahat_over_sigma_density(s_nodes, nu_eff)
+    integrand = np.array([inside_for_s(s) for s in s_nodes]) * density
+    return float(np.dot(s_weights, integrand))
+
+
+def _probability_one_sided_dunnett(
+    lambdas: np.ndarray, critical_value: float, nu: float, s_upper: float = inf
+) -> float:
+    """Probability in Hsu's Eq. (4.11), with the outer integral cut at ``s_upper``."""
     lambdas = np.asarray(lambdas, dtype=float)
     denom = np.sqrt(1.0 - np.square(lambdas))
 
@@ -351,20 +378,13 @@ def _probability_one_sided_dunnett(lambdas: np.ndarray, critical_value: float, n
         prod = norm.cdf(args).prod(axis=0)
         return _integrate_wrt_standard_normal_measure(prod)
 
-    nu_eff = _effective_nu(nu)
-    if isinf(nu_eff):
-        return inside_for_s(1.0)
-
-    a, b = _central_s_interval(nu_eff)
-    s_nodes = 0.5 * (b - a) * _GL_X + 0.5 * (b + a)
-    s_weights = 0.5 * (b - a) * _GL_W
-    density = _gamma_sigmahat_over_sigma_density(s_nodes, nu_eff)
-    integrand = np.array([inside_for_s(s) for s in s_nodes]) * density
-    return float(np.dot(s_weights, integrand))
+    return _outer_integral(inside_for_s, nu, s_upper)
 
 
-def _probability_two_sided_dunnett(lambdas: np.ndarray, critical_value: float, nu: float) -> float:
-    """Probability in Hsu's unbalanced Edwards-Hsu / two-sided MCC integral."""
+def _probability_two_sided_dunnett(
+    lambdas: np.ndarray, critical_value: float, nu: float, s_upper: float = inf
+) -> float:
+    """Edwards-Hsu / two-sided MCC probability, with the outer integral cut at ``s_upper``."""
     lambdas = np.asarray(lambdas, dtype=float)
     denom = np.sqrt(1.0 - np.square(lambdas))
 
@@ -375,16 +395,7 @@ def _probability_two_sided_dunnett(lambdas: np.ndarray, critical_value: float, n
         prod = (norm.cdf(upper) - norm.cdf(lower)).prod(axis=0)
         return _integrate_wrt_standard_normal_measure(prod)
 
-    nu_eff = _effective_nu(nu)
-    if isinf(nu_eff):
-        return inside_for_s(1.0)
-
-    a, b = _central_s_interval(nu_eff)
-    s_nodes = 0.5 * (b - a) * _GL_X + 0.5 * (b + a)
-    s_weights = 0.5 * (b - a) * _GL_W
-    density = _gamma_sigmahat_over_sigma_density(s_nodes, nu_eff)
-    integrand = np.array([inside_for_s(s) for s in s_nodes]) * density
-    return float(np.dot(s_weights, integrand))
+    return _outer_integral(inside_for_s, nu, s_upper)
 
 
 # -----------------------------------------------------------------------------
@@ -685,6 +696,122 @@ def unconstrained_mcb_edwards_hsu(summary: OneWaySummary, alpha: float = 0.05) -
             "two-sided MCC upper screens remain positive against every rival."
         ),
     )
+
+
+# -----------------------------------------------------------------------------
+# Sample size (Hsu 1996, Appendix C)
+# -----------------------------------------------------------------------------
+def _validate_design_inputs(k: int, delta_star: float, sigma: float, alpha: float) -> None:
+    if k < 2:
+        raise ValueError("k must be at least 2.")
+    if not (math.isfinite(delta_star) and delta_star > 0):
+        raise ValueError("delta_star must be positive and finite.")
+    if not (math.isfinite(sigma) and sigma > 0):
+        raise ValueError("sigma must be positive and finite.")
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("alpha must be in (0, 1).")
+
+
+def _correct_useful_probability(
+    k: int, n: int, delta_star: float, sigma: float, alpha: float, *, two_sided: bool
+) -> float:
+    k, n = int(k), int(n)
+    _validate_design_inputs(k, delta_star, sigma, alpha)
+    if n < 2:
+        raise ValueError("n must be at least 2.")
+
+    nu = float(k * (n - 1))
+    lambdas = (1.0 / sqrt(2.0),) * (k - 1)
+    if two_sided:
+        crit = unconstrained_edwards_hsu_critical_value(lambdas, nu, alpha)
+        prob = _probability_two_sided_dunnett
+    else:
+        crit = constrained_critical_value(lambdas, nu, alpha)
+        prob = _probability_one_sided_dunnett
+    # Narrowness crit * sigma_hat * sqrt(2/n) < delta_star  <=>  S < u.
+    u = sqrt(n / 2.0) * (delta_star / sigma) / crit
+    return prob(np.asarray(lambdas), crit, nu, s_upper=u)
+
+
+def constrained_mcb_correct_useful_probability(
+    k: int, n: int, delta_star: float, sigma: float, alpha: float = 0.05
+) -> float:
+    """Hsu's probability of correct and useful inference for balanced constrained MCB.
+
+    Computes Hsu (1996), Theorem C.2.1, Eq. (C.3): the probability that the
+    constrained MCB intervals from a balanced experiment with ``n``
+    observations per arm cover their targets and have half-width
+    ``d * sigma_hat * sqrt(2 / n)`` below ``delta_star``. When that happens:
+
+    - every arm more than ``2 * delta_star`` below the true best gets upper
+      bound 0, so it leaves the candidate-best set;
+    - the sample-best arm is correctly asserted to be within ``delta_star``
+      of the true best.
+
+    The value is a conservative lower bound on the probability of that event
+    and is always below ``1 - alpha``.
+
+    Parameters
+    ----------
+    k:
+        Number of arms.
+    n:
+        Common per-arm sample size (balanced design).
+    delta_star:
+        Indifference margin, in the units of the response.
+    sigma:
+        Planning value (a guess) for the common standard deviation.
+    alpha:
+        Familywise error rate of the intervals.
+
+    Returns
+    -------
+    float
+        Probability of correct and useful inference.
+    """
+    return _correct_useful_probability(k, n, delta_star, sigma, alpha, two_sided=False)
+
+
+def unconstrained_mcb_edwards_hsu_correct_useful_probability(
+    k: int, n: int, delta_star: float, sigma: float, alpha: float = 0.05
+) -> float:
+    """Hsu's probability of correct and useful inference for balanced Edwards-Hsu MCB.
+
+    Hsu (1996), Appendix C, sizes Edwards-Hsu MCB with the two-sided MCC
+    computation, Eq. (C.5): the probability that the pivot event of Theorem
+    4.2.3 holds and the half-width ``|d| * sigma_hat * sqrt(2 / n)`` is below
+    ``delta_star``. When that happens:
+
+    - every arm more than ``2 * delta_star`` below the true best leaves the
+      screening set S;
+    - the sample-best arm is correctly asserted to be within ``delta_star``
+      of the true best.
+
+    The value is a conservative lower bound on the probability of that event
+    and is always below ``1 - alpha``. It needs more ``n`` than constrained
+    MCB because ``|d| > d``, in exchange for two-sided bounds on each arm's
+    gap to the best.
+
+    Parameters
+    ----------
+    k:
+        Number of arms.
+    n:
+        Common per-arm sample size (balanced design).
+    delta_star:
+        Indifference margin, in the units of the response.
+    sigma:
+        Planning value (a guess) for the common standard deviation.
+    alpha:
+        Familywise error rate of the intervals.
+
+    Returns
+    -------
+    float
+        Probability of correct and useful inference.
+    """
+    return _correct_useful_probability(k, n, delta_star, sigma, alpha, two_sided=True)
+
 
 # -----------------------------------------------------------------------------
 # Pretty-print helper for demos
