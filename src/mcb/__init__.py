@@ -6,6 +6,7 @@ from .core import (
     constrained_critical_value,
     constrained_mcb,
     constrained_mcb_correct_useful_probability,
+    constrained_mcb_sample_size,
     pooled_mse_from_group_stats,
     pooled_mse_from_samples,
     print_result,
@@ -14,6 +15,7 @@ from .core import (
     unconstrained_edwards_hsu_critical_value,
     unconstrained_mcb_edwards_hsu,
     unconstrained_mcb_edwards_hsu_correct_useful_probability,
+    unconstrained_mcb_edwards_hsu_sample_size,
 )
 
 __all__ = [
@@ -22,6 +24,7 @@ __all__ = [
     "constrained_critical_value",
     "constrained_mcb",
     "constrained_mcb_correct_useful_probability",
+    "constrained_mcb_sample_size",
     "pooled_mse_from_group_stats",
     "pooled_mse_from_samples",
     "print_result",
@@ -30,6 +33,7 @@ __all__ = [
     "unconstrained_edwards_hsu_critical_value",
     "unconstrained_mcb_edwards_hsu",
     "unconstrained_mcb_edwards_hsu_correct_useful_probability",
+    "unconstrained_mcb_edwards_hsu_sample_size",
 ]
 
 __version__ = "0.1.0"

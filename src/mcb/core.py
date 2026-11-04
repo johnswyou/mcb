@@ -10,6 +10,10 @@ This module implements:
        eta_i = mu_i - max_j mu_j
    using Hsu's unbalanced-design extension.
 
+3. Sample-size computation for balanced designs (Appendix C): the probability
+   of correct and useful inference, and the smallest per-arm n reaching a
+   target, for both methods above.
+
 The critical-value computation follows the formulas and quadrature strategy
 in Appendix D.2 of Hsu (1996):
 - 48-point Gauss-Hermite quadrature for the inside integral.
@@ -47,6 +51,7 @@ __all__ = [
     "constrained_critical_value",
     "constrained_mcb",
     "constrained_mcb_correct_useful_probability",
+    "constrained_mcb_sample_size",
     "pooled_mse_from_group_stats",
     "pooled_mse_from_samples",
     "print_result",
@@ -55,6 +60,7 @@ __all__ = [
     "unconstrained_edwards_hsu_critical_value",
     "unconstrained_mcb_edwards_hsu",
     "unconstrained_mcb_edwards_hsu_correct_useful_probability",
+    "unconstrained_mcb_edwards_hsu_sample_size",
 ]
 
 
@@ -811,6 +817,114 @@ def unconstrained_mcb_edwards_hsu_correct_useful_probability(
         Probability of correct and useful inference.
     """
     return _correct_useful_probability(k, n, delta_star, sigma, alpha, two_sided=True)
+
+
+_MAX_DESIGN_N = 2**31
+
+
+def _smallest_n(prob: Callable[[int], float], target: float, alpha: float) -> int:
+    # P(n) only dips at the very start, and only while P < 0.02, so once P(2) < target
+    # the set {n : P(n) >= target} is upward-closed and bisection finds its minimum.
+    if prob(2) >= target:
+        return 2
+    lo, hi = 2, 4
+    while prob(hi) < target:
+        if hi >= _MAX_DESIGN_N:
+            raise RuntimeError(
+                f"target={target} not reached by n={hi} at alpha={alpha}; "
+                "target is too close to 1 - alpha for the critical-value tolerance."
+            )
+        lo, hi = hi, 2 * hi
+    while hi - lo > 1:  # invariant: prob(lo) < target <= prob(hi)
+        mid = (lo + hi) // 2
+        if prob(mid) >= target:
+            hi = mid
+        else:
+            lo = mid
+    return hi
+
+
+def _sample_size(
+    prob_func: Callable[..., float], k: int, delta_star: float, sigma: float, alpha: float, target: float
+) -> int:
+    _validate_design_inputs(int(k), delta_star, sigma, alpha)
+    if not 0.0 < target < 1.0 - alpha:
+        raise ValueError(
+            "target must be in (0, 1 - alpha); the probability of correct and useful "
+            "inference never reaches 1 - alpha."
+        )
+    return _smallest_n(lambda n: prob_func(k, n, delta_star, sigma, alpha), target, alpha)
+
+
+def constrained_mcb_sample_size(
+    k: int, delta_star: float, sigma: float, alpha: float = 0.05, target: float = 0.90
+) -> int:
+    """Smallest balanced per-arm sample size for constrained MCB (Hsu 1996, Appendix C).
+
+    Returns the smallest ``n >= 2`` per arm for which
+    :func:`constrained_mcb_correct_useful_probability` is at least ``target``.
+    With at least that probability, every arm more than ``2 * delta_star``
+    below the true best is ruled out, and the sample-best arm is correctly
+    asserted to be within ``delta_star`` of the true best.
+
+    Parameters
+    ----------
+    k:
+        Number of arms.
+    delta_star:
+        Indifference margin, in the units of the response.
+    sigma:
+        Planning value (a guess) for the common standard deviation.
+    alpha:
+        Familywise error rate of the intervals.
+    target:
+        Required probability of correct and useful inference; must be below
+        ``1 - alpha``.
+
+    Returns
+    -------
+    int
+        Common per-arm sample size. Call the probability function at this
+        ``n`` to see the probability actually achieved.
+    """
+    return _sample_size(constrained_mcb_correct_useful_probability, k, delta_star, sigma, alpha, target)
+
+
+def unconstrained_mcb_edwards_hsu_sample_size(
+    k: int, delta_star: float, sigma: float, alpha: float = 0.05, target: float = 0.90
+) -> int:
+    """Smallest balanced per-arm sample size for Edwards-Hsu MCB (Hsu 1996, Appendix C).
+
+    Returns the smallest ``n >= 2`` per arm for which
+    :func:`unconstrained_mcb_edwards_hsu_correct_useful_probability` is at
+    least ``target``. With at least that probability, every arm more than
+    ``2 * delta_star`` below the true best leaves the screening set, and the
+    sample-best arm is correctly asserted to be within ``delta_star`` of the
+    true best.
+
+    Parameters
+    ----------
+    k:
+        Number of arms.
+    delta_star:
+        Indifference margin, in the units of the response.
+    sigma:
+        Planning value (a guess) for the common standard deviation.
+    alpha:
+        Familywise error rate of the intervals.
+    target:
+        Required probability of correct and useful inference; must be below
+        ``1 - alpha``.
+
+    Returns
+    -------
+    int
+        Common per-arm sample size. Call the probability function at this
+        ``n`` to see the probability actually achieved.
+    """
+    return _sample_size(
+        unconstrained_mcb_edwards_hsu_correct_useful_probability, k, delta_star, sigma, alpha, target
+    )
 
 
 # -----------------------------------------------------------------------------
