@@ -275,8 +275,6 @@ $$
 \text{true gap}_i \le \text{luck}_i < w < \delta^*.
 $$
 
-For example, `C` wins the test in the first figure below. Its sample mean is 0.21 above `D`'s, so its gap in the test is $-0.21$. Its luck is 1.21, so its true gap is $1.21 - 0.21 = 1.00$, which is less than its luck.
-
 **Every arm more than $2\delta^*$ below the best is ruled out.** Arm $i$'s upper bound is $(\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j + w)^+$, where $x^+ = \max(x, 0)$, and the arm is ruled out when this bound is 0. If arm $i$ is not ruled out, its sample mean is less than $w$ below every other arm's, including arm $b$'s. Its gap in the test is then below $w$, so
 
 $$
