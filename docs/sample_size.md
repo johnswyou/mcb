@@ -263,18 +263,24 @@ $$
 
 This condition is the *correctness event* from the proof of Hsu's Theorem 4.1.1. It has probability exactly $1 - \alpha$: if the same experiment were repeated many times with new users, a fraction $1 - \alpha$ of the runs would be correct tests. When it occurs, every interval covers its target.
 
-Both conclusions hold in a correct test with $w < \delta^*$. Both proofs use the fact that an arm's true gap equals its luck plus its gap in the test.
-
-**The observed winner is less than $\delta^*$ below the best.** If arm $b$ wins, its true gap is 0. Otherwise the winner's sample mean is at least arm $b$'s, so its gap in the test is 0 or less, and
+Both conclusions hold in a correct test with $w < \delta^*$. Rearranging the definition of luck gives an equation that both proofs use:
 
 $$
-\text{true gap} \le \text{luck} < w < \delta^*.
+\text{true gap}_i = \text{luck}_i + \text{gap in the test}_i.
 $$
+
+**The observed winner is less than $\delta^*$ below the best.** If arm $b$ wins, its true gap is 0. Otherwise, let arm $i$ be the winner. It has the highest sample mean of all the arms, so $\hat{\mu}_i \ge \hat{\mu}_b$, and its gap in the test, $\hat{\mu}_b - \hat{\mu}_i$, is 0 or less. Adding a number that is 0 or less to the luck cannot increase it, so the equation above gives
+
+$$
+\text{true gap}_i \le \text{luck}_i < w < \delta^*.
+$$
+
+For example, `C` wins the test in the first figure below. Its sample mean is 0.21 above `D`'s, so its gap in the test is $-0.21$. Its luck is 1.21, so its true gap is $1.21 - 0.21 = 1.00$, which is less than its luck.
 
 **Every arm more than $2\delta^*$ below the best is ruled out.** Arm $i$'s upper bound is $(\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j + w)^+$, where $x^+ = \max(x, 0)$, and the arm is ruled out when this bound is 0. If arm $i$ is not ruled out, its sample mean is less than $w$ below every other arm's, including arm $b$'s. Its gap in the test is then below $w$, so
 
 $$
-\text{true gap} < w + w = 2w < 2\delta^*.
+\text{true gap}_i = \text{luck}_i + \text{gap in the test}_i < w + w = 2w < 2\delta^*.
 $$
 
 An arm with a true gap above $2\delta^*$ therefore cannot stay in.
