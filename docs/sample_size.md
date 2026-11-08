@@ -1,6 +1,6 @@
 # Sample Size
 
-`mcb` can choose the number of users per arm for an A/B/n test that will be analyzed with MCB. It finds the smallest per-arm sample size for which, with a chosen probability, the MCB intervals at the end of the test (1) identify arms close to the best and (2) rule out the arms that are clearly worse. The method comes from Hsu (1988) and Hsu (1996, Appendix C).
+`mcb` can choose the number of users per arm for an A/B/n test that will be analyzed with MCB. It finds the smallest per-arm sample size for which, with a chosen probability, the MCB intervals at the end of the test (1) identify an arm close to the best and (2) rule out the arms that are clearly worse. The method comes from Hsu (1988) and Hsu (1996, Appendix C).
 
 ## Running example
 
@@ -35,11 +35,11 @@ $$
 n \approx 2\left(\frac{d\,\sigma}{\delta^*}\right)^2,
 $$
 
-where $d$ is the MCB critical value, about 2.16 for $k = 5$ and $\alpha = 0.05$. The input that most needs care is the planning value of $\sigma$. If the true standard deviation turns out larger, the intervals are still valid but wider. With a true standard deviation of 42 instead of 40, the winner is shown to be within about 2.1 minutes of the best instead of 2.
+where $d$ is the MCB critical value, about 2.16 for $k = 5$ and $\alpha = 0.05$. The input that most needs care is the planning value of $\sigma$. If the true standard deviation turns out larger, the intervals are still valid but wider.
 
 The rest of the page explains those two conclusions, why the exact answer is larger than the formula, how to choose the inputs and how to check the plan by simulation. The derivations are collected at the end.
 
-## The two conclusions the test is sized for
+## Conclusions at the end of the test
 
 At the end of the test the team wants to draw two conclusions:
 
