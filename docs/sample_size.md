@@ -275,7 +275,7 @@ $$
 \text{true gap}_i \le \text{luck}_i < w < \delta^*.
 $$
 
-The team cannot see true means, so it relies on the winner's confidence interval to report this. If arm $i$ is the winner, the lower bound of its interval is
+If arm $i$ is the winner, the lower bound of its interval is
 
 $$
 \min\left(0,\ \hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j - w\right).
@@ -283,15 +283,15 @@ $$
 
 The winner has the highest sample mean, so $\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j$ is 0 or more, and the lower bound is at least $-w$. Because $w < \delta^*$, the lower bound is above $-\delta^*$, which shows that the winner is less than $\delta^*$ below the true best arm.
 
-**Every arm more than $2\delta^*$ below the best is ruled out.** Arm $i$'s upper bound is $(\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j + w)^+$, where $x^+ = \max(x, 0)$, and the arm is ruled out when this bound is 0. If arm $i$ is not ruled out, its sample mean is less than $w$ below every other arm's, including arm $b$'s. Its gap in the test is then below $w$, so
+**Every arm more than $2\delta^*$ below the best is ruled out.** Let arm $i$ be an arm whose true gap is more than $2\delta^*$. Because $w < \delta^*$, its true gap is more than $2w$. Its luck is below $w$, so the equation above gives
 
 $$
-\text{true gap}_i = \text{luck}_i + \text{gap in the test}_i < w + w = 2w < 2\delta^*.
+\text{gap in the test}_i = \text{true gap}_i - \text{luck}_i > 2w - w = w.
 $$
 
-An arm with a true gap above $2\delta^*$ therefore cannot stay in.
+So arm $i$'s sample mean is more than $w$ below arm $b$'s sample mean. Arm $b$ is one of the other arms, so the highest sample mean among the other arms is at least arm $b$'s, and $\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j$ is less than $-w$. Arm $i$'s upper bound is $(\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j + w)^+$, where $x^+ = \max(x, 0)$. The expression in parentheses is negative, so the upper bound is 0 and the arm is ruled out.
 
-**Why the boundary is $2\delta^*$.** The last inequality adds $w$ twice. An arm that stays in has a sample mean less than $w$ below arm $b$'s sample mean, and luck can hide up to another $w$ of its true gap. An arm with a true gap below $2w$ can therefore stay in if it is lucky enough. In the running example $w$ is about 1.98 and `B` has a true gap of 3.50, so when `D` leads, luck above 1.52 keeps `B` in, and a correct test allows that much luck. For this reason an arm between $\delta^*$ and $2\delta^*$ below the best may or may not be ruled out.
+**Why the boundary is $2\delta^*$.** The $2w$ has two parts. Luck can hide up to $w$ of an arm's true gap. After that, the arm's sample mean must still be more than $w$ below arm $b$'s sample mean for the arm to be ruled out. An arm with a true gap below $2w$ can therefore stay in if it is lucky enough. In the running example $w$ is about 1.98 and `B` has a true gap of 3.50, so when `D` leads, luck above 1.52 keeps `B` in, and a correct test allows that much luck. For this reason an arm between $\delta^*$ and $2\delta^*$ below the best may or may not be ruled out.
 
 The next two figures show these quantities in simulated tests. The first uses the test from [What the sample size controls](#what-the-sample-size-controls). In both, arm $b$ is `D`.
 
