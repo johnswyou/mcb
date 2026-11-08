@@ -43,8 +43,8 @@ The rest of the page explains those two conclusions, why the exact answer is lar
 
 At the end of the test the team wants to draw two conclusions:
 
-1. The arm with the highest sample mean (the *observed winner*) is not much worse than the true best arm, so it can be shipped.
-2. The arms that are clearly worse than the best are ruled out.
+1. The arm with the highest sample mean (the *observed winner*) is less than $\delta^*$ below the true best arm, so it can be shipped.
+2. Every arm more than $2\delta^*$ below the true best arm is ruled out.
 
 Both conclusions need a tolerance. Identifying the exact best arm is not a realistic goal: two algorithms that differ by 0.01 minutes cannot be separated by a test of practical size, and the difference would not matter. The tolerance is $\delta^* > 0$, the value the team chooses before the test, in the units of the metric. A shortfall from the best smaller than $\delta^*$ is treated as negligible.
 
@@ -107,7 +107,7 @@ The next figure shows 16 simulated tests at the planned sample size. They are so
 Sixteen simulated tests with 3797 users per arm. Each gray bar ends at that test's cut line.
 ```
 
-When the intervals are correct and $w < \delta^*$, both conclusions hold; [Derivations](#derivations) gives the proof. Hsu calls the probability of this the probability of *correct and useful* inference. `mcb` computes it, and the sample-size functions find the smallest $n$ at which it reaches `target`. Strictly, the computation uses an event, the *correctness event* (defined in [Derivations](#derivations)), that has probability exactly $1 - \alpha$ and implies that every interval is correct. Intervals can also be correct without it, so the computed probability is a lower bound and the plan is conservative.
+Both conclusions hold when $w < \delta^*$ and an event called the *correctness event* occurs. [Derivations](#derivations) defines this event and gives the proof. The event has probability exactly $1 - \alpha$ and implies that every interval is correct. Hsu calls the probability that the intervals are correct and $w < \delta^*$ the probability of *correct and useful* inference. `mcb` computes it using the correctness event, and the sample-size functions find the smallest $n$ at which it reaches `target`. Intervals can also be correct without the event, so the computed probability is a lower bound and the plan is conservative.
 
 Because the correctness event has probability $1 - \alpha$, the probability of correct and useful inference is always below $1 - \alpha$ and approaches it as $n$ grows. `target` must therefore be below $1 - \alpha$; otherwise the functions raise `ValueError`. With $\alpha = 0.05$, Hsu's example uses a target of 0.90.
 
@@ -247,19 +247,41 @@ In this configuration, `Control` and `A` are more than 4 minutes below the best,
 
 ## Derivations
 
-### Proof that correct, narrow intervals give both conclusions
+### Proof of the two conclusions
 
-The computation uses an event from the proof of Hsu's Theorem 4.1.1, called the correctness event here. It has probability exactly $1 - \alpha$, and when it occurs every interval covers its target. With $b$ the true best arm, the event is
+Let $b$ be the true best arm. For any other arm $i$, the *true gap* is $\mu_b - \mu_i$ and the *gap in the test* is $\hat{\mu}_b - \hat{\mu}_i$. The arm's *luck* is the difference between them:
 
 $$
-(\hat{\mu}_i - \hat{\mu}_b) - (\mu_i - \mu_b) < w \quad \text{for every arm } i \neq b,
+\text{luck}_i = (\mu_b - \mu_i) - (\hat{\mu}_b - \hat{\mu}_i).
 $$
 
-that is, the estimated difference between any arm and arm $b$ overstates the true difference by less than $w$.
+Luck is positive when the test shows the arm closer to arm $b$ than it really is. A test is *correct* if every arm's luck is below $w$:
 
-Call the left side of this inequality arm $i$'s *luck*. It equals the arm's true gap to arm $b$, $\mu_b - \mu_i$, minus its gap to arm $b$ in the test, $\hat{\mu}_b - \hat{\mu}_i$. Luck is positive when the test shows the arm closer to arm $b$ than it really is. A test in which the correctness event occurs is called a *correct test* here. If the same experiment were repeated many times with new users, a fraction $1 - \alpha$ of the runs would be correct tests. A real test cannot be checked, because its true means are unknown.
+$$
+\text{luck}_i < w \quad \text{for every arm } i \neq b.
+$$
 
-The next figure shows luck in the simulated test from [What the sample size controls](#what-the-sample-size-controls), where arm $b$ is `D`.
+This condition is the *correctness event* from the proof of Hsu's Theorem 4.1.1. It has probability exactly $1 - \alpha$: if the same experiment were repeated many times with new users, a fraction $1 - \alpha$ of the runs would be correct tests. When it occurs, every interval covers its target.
+
+Both conclusions hold in a correct test with $w < \delta^*$. Both proofs use the fact that an arm's true gap equals its luck plus its gap in the test.
+
+**The observed winner is less than $\delta^*$ below the best.** If arm $b$ wins, its true gap is 0. Otherwise the winner's sample mean is at least arm $b$'s, so its gap in the test is 0 or less, and
+
+$$
+\text{true gap} \le \text{luck} < w < \delta^*.
+$$
+
+**Every arm more than $2\delta^*$ below the best is ruled out.** Arm $i$'s upper bound is $(\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j + w)^+$, where $x^+ = \max(x, 0)$, and the arm is ruled out when this bound is 0. If arm $i$ is not ruled out, its sample mean is less than $w$ below every other arm's, including arm $b$'s. Its gap in the test is then below $w$, so
+
+$$
+\text{true gap} < w + w = 2w < 2\delta^*.
+$$
+
+An arm with a true gap above $2\delta^*$ therefore cannot stay in.
+
+**Why the boundary is $2\delta^*$.** The last inequality adds $w$ twice. An arm stays in if it is less than $w$ behind in the test, and luck can hide up to another $w$ of its true gap. An arm with a true gap below $2w$ can therefore stay in if it is lucky enough. In the running example $w$ is about 1.98 and `B` has a true gap of 3.50, so when `D` leads, luck above 1.52 keeps `B` in, and a correct test allows that much luck. For this reason an arm between $\delta^*$ and $2\delta^*$ below the best may or may not be ruled out.
+
+The next two figures show these quantities in simulated tests. The first uses the test from [What the sample size controls](#what-the-sample-size-controls). In both, arm $b$ is `D`.
 
 ```{figure} figures/sample_size_luck_in_one_test.svg
 :alt: One simulated test on an axis of minutes watched, below the three zones. The upper group shows arm A with a true gap to D of 4.50, more than 2w = 3.93, and a gap in the test of 3.10, so its luck is 1.40. C leads, the cut line is w = 1.97 behind C, and A is behind the cut line. The lower group shows arm C with a true gap to D of 1.00. C is 0.21 ahead of D in the test, so its luck is 1.21, less than w.
@@ -268,48 +290,12 @@ The next figure shows luck in the simulated test from [What the sample size cont
 One simulated test with 3797 users per arm. It is a correct test, because the largest luck of any arm is 1.87 and $w$ is 1.97.
 ```
 
-`A` is truly 4.50 behind `D`, which is more than $2w = 3.93$. In the test it is 3.10 behind, so its luck is 1.40. The light gray bars show that amount: `A`'s sample mean is 0.42 above its true mean, and `D`'s is 0.98 below its true mean. The gap in the test is still more than $w$. The leader's sample mean is at or above `D`'s, so `A` is behind the cut line and is ruled out.
-
-`C` is truly 1.00 behind `D`, but its sample mean is 0.21 above `D`'s, so its luck is $1.00 + 0.21 = 1.21$. A winner's gap in the test is 0 or less, so its luck is at least its true gap. Luck is below $w$ in a correct test, so the winner's true gap is below $w$.
-
-The next two paragraphs give these two arguments for any arm.
-
-For an arm $i \neq b$, the upper bound is $(\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j + w)^+$, where $x^+ = \max(x, 0)$. The largest of the other sample means is at least $\hat{\mu}_b$, so when the correctness event occurs,
-
-$$
-\text{upper bound}_i
-\le (\hat{\mu}_i - \hat{\mu}_b + w)^+
-\le (\mu_i - \mu_b + 2w)^+.
-$$
-
-If arm $i$ is more than $2\delta^*$ below the best and $w < \delta^*$, then $\mu_i - \mu_b < -2\delta^* < -2w$, the expression inside is negative, and the upper bound is 0. Arm $i$ is ruled out.
-
-The observed winner's sample mean is at least as large as every other arm's, so each estimated difference in its lower bound is at least 0, and the lower bound is at least $-w > -\delta^*$. Because its interval is correct, the winner's true $\theta$ is also above $-\delta^*$, which means it is within $\delta^*$ of the true best.
-
-The next figure compares the luck each arm got with the luck it needs, over 200 simulated tests with 3797 users per arm. Each dot is one test, placed by the arm's luck in that test, and its shape and shade show the outcome from `constrained_mcb`.
-
 ```{figure} figures/sample_size_luck_needed.svg
 :alt: Four rows of stacked dots, one row per arm other than D, with one dot per simulated test placed by that arm's luck. Each row has two dashed lines, the luck needed to stay in and the luck needed to win. A thick line marks w, about 1.98. For C both dashed lines are left of w, and the dots change from ruled out to kept to won at those lines. For B the stay-in line is left of w and the win line is right of it. For A and Control both dashed lines are right of w and every dot is ruled out.
 :width: 100%
 
-Each arm's luck in 200 simulated tests. The dashed lines show the luck an arm needs, and the thick line shows $w$.
+Each arm's luck in 200 simulated tests with 3797 users per arm. The dashed lines show the luck an arm needs when `D` leads, and the thick line is the average $w$ across the tests.
 ```
-
-To win, an arm's gap in the test must be 0 or less, so its luck must be at least its true gap. To stay in, its sample mean must be less than $w$ below the leader's sample mean. The leader's sample mean is at or above `D`'s, so the arm's luck must be more than its true gap minus $w$. For example, `B` has a true gap of 3.50, so it needs luck above $3.50 - 1.98 = 1.52$ to stay in. `C` needs $-0.98$, which means `C` stays in even if the test shows it up to 0.98 further behind `D` than it really is.
-
-The thick line is drawn at 1.98, the average $w$ across the tests. Each test has its own $w$, between 1.95 and 2.02, because $\hat{\sigma}$ differs from test to test. In a correct test every dot is to the left of that test's $w$, and 191 of the 200 tests are correct. Comparing the dashed lines with $w$ gives what each arm can do in a correct test:
-
-- `Control` and `A` need 2.52 to stay in, which is more than $w$, so they are ruled out.
-- `B` needs 1.52 to stay in, which is less than $w$, and 3.50 to win, which is more than $w$. It can stay in but cannot win.
-- `C` needs 1.00 to win, which is less than $w$, so it can win.
-
-In general, an arm with a true gap above $2w$ needs more than $w$ to stay in, and an arm with a true gap above $w$ needs more than $w$ to win.
-
-Two dots do not match the lines exactly, because the lines assume `D` leads and use the average $w$. One gray dot is to the right of `B`'s stay-in line, because `C`'s sample mean was 1.52 above `D`'s in that test, which moved the cut line to the right. One black dot is just to the left of `C`'s stay-in line, because that test's $w$ was slightly larger than average.
-
-The other 9 tests are not correct. In all 9, `Control` and `A` were still ruled out and the winner was `C` or `D`, so the two conclusions can hold in a test that is not correct.
-
-The correctness event implies that every interval covers its target, but the intervals can also cover their targets when it does not occur. The computed probabilities are therefore lower bounds on the probability that the intervals cover their targets and are narrow.
 
 ### How the probability is computed
 
