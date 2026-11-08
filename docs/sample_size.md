@@ -1,6 +1,6 @@
 # Sample Size
 
-`mcb` can choose the number of users per arm for an A/B/n test that will be analyzed with MCB. It finds the smallest per-arm sample size for which, with a chosen probability, the MCB intervals at the end of the test are both correct and narrow enough to be useful: they identify an arm close to the best and rule out the arms that are clearly worse. The method is Hsu's (Hsu 1988; Hsu 1996, Appendix C).
+`mcb` can choose the number of users per arm for an A/B/n test that will be analyzed with MCB. It finds the smallest per-arm sample size for which, with a chosen probability, the MCB intervals at the end of the test (1) identify arms close to the best and (2) rule out the arms that are clearly worse. The method comes from Hsu (1988) and Hsu (1996, Appendix C).
 
 ## Running example
 
@@ -14,6 +14,8 @@ $$
 
 the difference between arm $i$'s true mean and the largest of the other arms' true means. The $k$ intervals hold simultaneously with probability at least $1 - \alpha$. An arm whose upper bound is 0 is ruled out as the best, and the arms that remain form the candidate-best set $G$ (see [Constrained MCB](constrained_mcb.md)).
 
+Before the test, the team chooses a value $\delta^*$ (`delta_star`), in minutes: the largest shortfall from the true best arm that it would accept in the arm it ships. The team sets this value based on what difference matters for the product, and the sample-size calculation takes it as an input. Here the team chooses $\delta^* = 2$ minutes.
+
 The planning question is how many users each arm needs.
 
 ## The answer in brief
@@ -25,7 +27,7 @@ n = constrained_mcb_sample_size(k=5, delta_star=2, sigma=40, alpha=0.05, target=
 print(n)  # 3797
 ```
 
-The test needs 3797 users per arm, 18,985 in total, or about 8 days of traffic. With probability at least 0.90, the algorithm with the highest sample mean is shown to be within 2 minutes (`delta_star`) of the true best, and every algorithm more than 4 minutes below the best is ruled out.
+The test needs 3797 users per arm, 18,985 in total, or about 8 days of traffic. With probability at least 0.90, two conclusions then hold: the algorithm with the highest sample mean is shown to be within 2 minutes of the true best (the `delta_star` the team chose), and every algorithm more than 4 minutes below the best is ruled out.
 
 For a test this large, a simple formula comes within 2% of that answer:
 
@@ -33,20 +35,20 @@ $$
 n \approx 2\left(\frac{d\,\sigma}{\delta^*}\right)^2,
 $$
 
-where $d$ is the MCB critical value, about 2.16 for $k = 5$ and $\alpha = 0.05$. The input that most needs care is the planning value of $\sigma$. If the true standard deviation turns out larger, the intervals are still valid, but the margin they can show grows in proportion.
+where $d$ is the MCB critical value, about 2.16 for $k = 5$ and $\alpha = 0.05$. The input that most needs care is the planning value of $\sigma$. If the true standard deviation turns out larger, the intervals are still valid but wider. With a true standard deviation of 42 instead of 40, the winner is shown to be within about 2.1 minutes of the best instead of 2.
 
-The rest of the page explains what the guarantee means, why the exact answer is larger than the formula, how to choose the inputs and how to check the plan by simulation. The derivations are collected at the end.
+The rest of the page explains those two conclusions, why the exact answer is larger than the formula, how to choose the inputs and how to check the plan by simulation. The derivations are collected at the end.
 
-## What the guarantee means
+## The two conclusions the test is sized for
 
 At the end of the test the team wants to draw two conclusions:
 
 1. The arm with the highest sample mean (the *observed winner*) is not much worse than the true best arm, so it can be shipped.
 2. The arms that are clearly worse than the best are ruled out.
 
-Both conclusions need a tolerance. Identifying the exact best arm is not a realistic goal: two algorithms that differ by 0.01 minutes cannot be separated by a test of practical size, and the difference would not matter. The tolerance is a margin $\delta^* > 0$ (`delta_star`), in the units of the metric. A shortfall from the best smaller than $\delta^*$ is treated as negligible. The example uses $\delta^* = 2$ minutes.
+Both conclusions need a tolerance. Identifying the exact best arm is not a realistic goal: two algorithms that differ by 0.01 minutes cannot be separated by a test of practical size, and the difference would not matter. The tolerance is $\delta^* > 0$, the value the team chooses before the test, in the units of the metric. A shortfall from the best smaller than $\delta^*$ is treated as negligible.
 
-The margin divides the arms into three zones according to how far each arm's true mean is below the best:
+$\delta^*$ divides the arms into three zones according to how far each arm's true mean is below the best:
 
 ```text
        clearly worse          gray zone       good enough
@@ -54,13 +56,13 @@ The margin divides the arms into three zones according to how far each arm's tru
                   best - 2δ*         best - δ*         best
 ```
 
-With the sample size computed here, the following holds with at least the chosen probability: the observed winner is in the good-enough zone and its interval shows this, and every arm in the clearly-worse zone is ruled out. Arms in the gray zone may or may not be ruled out. The next section explains why the outer boundary is at $2\delta^*$.
+With the sample size computed here, the following holds with at least the chosen probability: the observed winner is in the good-enough zone, and every arm in the clearly-worse zone is ruled out. Arms in the gray zone may or may not be ruled out. [Derivations](#derivations) explains why the outer boundary is at $2\delta^*$.
 
-Readers used to power calculations may look for a minimum detectable effect. The closest counterpart is $2\delta^*$: an arm that far below the best is guaranteed to be ruled out. $\delta^*$ itself is a tolerance on the arm that ships, not an effect to detect.
+Readers used to power calculations may look for a minimum detectable effect. The closest counterpart is $\delta^*$.
 
 ## What the sample size controls
 
-Two things can prevent these conclusions. First, an interval can miss its true value. MCB keeps the probability of this at or below $\alpha$ at every sample size, so adding users does not change it. Second, the intervals can all be correct but too wide to rule any arm out or to show that the winner is close to the best. Width is what the sample size controls.
+At the end of the test, the team wants to conclude that the observed winner is within $\delta^*$ of the best and that every arm more than $2\delta^*$ below the best is ruled out. Two things can go wrong. First, an interval can miss its true value. MCB keeps the probability of this at or below $\alpha$ at every sample size, so adding users does not change it. Second, the intervals can all be correct but too wide to rule any arm out or to show that the winner is close to the best. The sample size controls the width of the intervals.
 
 In a balanced test with $n$ users per arm, every constrained MCB bound is an estimated difference between two arm means, plus or minus the same amount
 
@@ -68,13 +70,13 @@ $$
 w = d\,\hat{\sigma}\sqrt{2/n},
 $$
 
-clipped at 0. It has three factors:
+with the confidence interval's upper bound clipped at 0. Where:
 
 - $\sqrt{2/n}$ is the standard error of a difference between two arm means, in units of $\sigma$. It is the only factor set directly by the design, and it decreases like $1/\sqrt{n}$.
 - $\hat{\sigma}$ is the pooled standard deviation estimated from the test data. It is random. Before the test, all that is known is that it will be close to $\sigma$.
 - $d$ is the MCB critical value. It depends on $k$, $\alpha$ and the error degrees of freedom $\nu = k(n-1)$, and it decreases slightly as $n$ grows. For $k = 5$ and $\alpha = 0.05$ it is about 2.16 when $n$ is large.
 
-The margin and $w$ do different jobs. $\delta^*$ and $2\delta^*$ are lines drawn before the test, measured from the true best arm. $w$ is a ruler that the test supplies, measured back from the highest sample mean. The position it reaches is called the *cut line* here: an arm whose sample mean is at or behind the cut line has an upper bound of 0 and is ruled out.
+$\delta^*$ and $w$ do different things. $\delta^*$ and $2\delta^*$ are lines drawn before the test, measured from the true best arm. $w$ is a ruler that the test supplies, measured back from the highest sample mean. The position it reaches is called the *cut line* here: an arm whose sample mean is at or behind the cut line has an upper bound of 0 and is ruled out.
 
 The figures in this section use the true means from [Checking the plan by simulation](#checking-the-plan-by-simulation). With $\delta^* = 2$, `Control` and `A` are clearly worse, `B` is in the gray zone, and `C` and `D` are good enough.
 
@@ -96,16 +98,7 @@ More users shorten the ruler. The next figure repeats this test at three sample 
 The same test at three sample sizes.
 ```
 
-With 1000 users per arm, $w$ is wider than $\delta^*$, and `A` stays in even though it is clearly worse. With 3797, $w$ just fits inside $\delta^*$, which is what the plan buys. With 15,000, $w$ is about half of $\delta^*$, and `B` is ruled out too. Because $w$ decreases like $1/\sqrt{n}$, halving it takes about four times the users.
-
-If the intervals are correct and $w < \delta^*$, both conclusions follow:
-
-- Every arm more than $2\delta^*$ below the best is ruled out. To be sure of that, an arm's true gap has to cover two distances. The arm must end up at least $w$ behind the leader to fall behind the cut line. It also needs a further $w$ to absorb luck, because when the intervals are correct, noise can make its gap to the true best look smaller than it really is by less than $w$. A true gap of more than $2\delta^*$ is more than $2w$, so it covers both. The leader is never behind the true best arm, so this holds whichever arm leads.
-- The observed winner trails no other arm, so its lower bound is at least $-w$, which is above $-\delta^*$. Because its interval is correct, its true shortfall from the best is less than $\delta^*$.
-
-In the running example, $w$ is about 2 minutes. `A` is truly 4.5 minutes behind the best, so even if luck hides nearly 2 of them, it still looks about 2.5 behind and is ruled out. `B` is truly 3.5 behind, so if luck hides nearly 2, it looks only about 1.5 behind and can stay in. This is why the gray zone exists: an arm between $\delta^*$ and $2\delta^*$ below the best may or may not be ruled out, so the plan promises nothing about it. $2\delta^*$ is where the guarantee starts, not where arms start to be ruled out.
-
-The next figure shows 16 simulated tests at the planned sample size. They are consecutive draws, not selected, sorted by the leader's sample mean, so the cut lines form one edge and the leaders form a second edge about $w$ to its right.
+The next figure shows 16 simulated tests at the planned sample size. They are sorted by the leader's sample mean.
 
 ```{figure} figures/sample_size_many_tests.svg
 :alt: Sixteen rows, one per simulated test, sorted by the leader's sample mean. In each row a gray bar runs from the left edge to that test's cut line, so the bar ends form one stepped edge, and the leaders form a second edge about 2 minutes to its right. Control and A sit on the gray bar in every row. B sits on it in all but two rows. D, a dark blue square, usually leads, and C, a light blue circle, leads in two rows.
@@ -114,19 +107,9 @@ The next figure shows 16 simulated tests at the planned sample size. They are co
 Sixteen simulated tests with 3797 users per arm. Each gray bar ends at that test's cut line.
 ```
 
-The cut line moves with whichever arm leads, and `C` leads in 2 of these tests. `Control` and `A` are behind the line in all 16. `B` usually is, but it stays in twice, which is what the gray zone means. [Checking the plan by simulation](#checking-the-plan-by-simulation) repeats this over 1000 tests.
-
-Hsu calls the probability that the intervals are correct and $w < \delta^*$ the probability of *correct and useful* inference. `mcb` computes it, and the sample-size functions find the smallest $n$ at which it reaches `target`. Strictly, the computation uses an event, the *correctness event* (defined in [Derivations](#derivations)), that has probability exactly $1 - \alpha$ and guarantees that every interval is correct. Intervals can also be correct without it, so the computed probability is a lower bound and the plan is conservative.
+When the intervals are correct and $w < \delta^*$, both conclusions hold; [Derivations](#derivations) gives the proof. Hsu calls the probability of this the probability of *correct and useful* inference. `mcb` computes it, and the sample-size functions find the smallest $n$ at which it reaches `target`. Strictly, the computation uses an event, the *correctness event* (defined in [Derivations](#derivations)), that has probability exactly $1 - \alpha$ and implies that every interval is correct. Intervals can also be correct without it, so the computed probability is a lower bound and the plan is conservative.
 
 Because the correctness event has probability $1 - \alpha$, the probability of correct and useful inference is always below $1 - \alpha$ and approaches it as $n$ grows. `target` must therefore be below $1 - \alpha$; otherwise the functions raise `ValueError`. With $\alpha = 0.05$, Hsu's example uses a target of 0.90.
-
-## Why not a power calculation
-
-Experiments are often sized by power: the probability that a test, such as the $F$-test that all arms have equal means, rejects. Power answers a different question, whether the test will detect that the arms differ. The question here is whether the test will identify an arm close to the best and rule out the clearly worse ones.
-
-Power also counts some failures as successes. A test can reject on misleading data, after which follow-up comparisons claim $\mu_i > \mu_j$ when in fact $\mu_i < \mu_j$. Sizing for narrow intervals alone has the same problem, because it counts narrow intervals that miss the truth. Hsu's criterion counts a test as a success only when its intervals are correct and narrow.
-
-The two approaches give different sizes. For the running example, an $F$-test with power 0.90 whenever the best and worst arms differ by at least 4 minutes ($2\delta^*$) needs 3082 users per arm. The MCB plan needs 3797, and the extra users buy an answer to which arm to ship, which the $F$-test does not give.
 
 ## The known-$\sigma$ formula and its limits
 
@@ -163,7 +146,7 @@ Over this 7% range of $n$, the probability goes from near 0 to its limit of 0.95
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Probability | 0.039 | 0.122 | 0.364 | 0.710 | 0.909 | 0.948 | 0.950 |
 
-Here the probability rises over a fourfold range of $n$. The known-$\sigma$ formula gives $n = 5$, where the probability is only 0.71. The exact answer is $n = 6$, which agrees with Hsu's Figure C.1. (An $F$-test power calculation, for differences of 10,000 psi with probability 0.90, gives 5.)
+Here the probability rises over a fourfold range of $n$. The known-$\sigma$ formula gives $n = 5$, where the probability is only 0.71. The exact answer is $n = 6$, which agrees with Hsu's Figure C.1.
 
 The difference between the two cases is how precisely $\hat{\sigma}$ is estimated. With $\nu = k(n-1)$ degrees of freedom, the standard deviation of $\hat{\sigma}/\sigma$ is about $1/\sqrt{2\nu}$.
 
@@ -176,19 +159,19 @@ For tests of A/B size, then, $n$ is set mainly by $\delta^*$, $\sigma$, $k$ and 
 
 For large tests, the planning value of $\sigma$ is a bigger source of error than the sampling variation of $\hat{\sigma}$. If the true $\sigma$ is 41 minutes instead of 40, $\hat{\sigma}$ will be close to 41 and $w$ close to 2.03, and the probability that $w < 2$ is 0.001.
 
-The intervals are still correct with probability at least $1 - \alpha$, and they are only slightly wider than planned. In this regime the margin achieved is approximately $\delta^* \times (\text{true } \sigma / \text{planning } \sigma)$. With a planning value of 40 and a true $\sigma$ of 42, the winner is shown to be within about 2.1 minutes of the best instead of 2.
+The intervals are still correct with probability at least $1 - \alpha$, and they are only slightly wider than planned. In this regime the distance from the best that the test can show is approximately $\delta^* \times (\text{true } \sigma / \text{planning } \sigma)$. With a planning value of 40 and a true $\sigma$ of 42, the winner is shown to be within about 2.1 minutes of the best instead of 2.
 
-It is therefore better to use a planning $\sigma$ that is unlikely to be too low, such as an upper estimate from past data rather than the average. After the test, the intervals show the margin that the data support.
+It is therefore better to use a planning $\sigma$ that is unlikely to be too low, such as an upper estimate from past data rather than the average. After the test, the intervals show how close to the best the data place the winner.
 
 ## Choosing the inputs
 
 - `k`: the number of arms, including the control.
-- `delta_star`: the largest shortfall from the best that is acceptable in the arm that ships. It is set by what difference matters for the product. Arms more than $2\delta^*$ below the best are guaranteed to be ruled out.
+- `delta_star`: the largest shortfall from the best that is acceptable in the arm that ships. It is set by what difference matters for the product. With probability at least `target`, arms more than $2\delta^*$ below the best are ruled out.
 - `sigma`: a planning value for the standard deviation of the per-user metric, in the same units as `delta_star`. Historical data, an A/A test or a pre-period can supply it. For a conversion rate near $p$, $\sigma \approx \sqrt{p(1-p)}$. When in doubt, use a larger value. Only the ratio $\delta^*/\sigma$ enters the calculation.
 - `alpha`: the familywise error rate that will be used in the analysis.
 - `target`: the required probability of correct and useful inference. It must be below $1 - \alpha$.
 
-The guarantee rests on the one-way normal model: independent users, a common variance across arms, and normal errors. At A/B scale, approximately normal arm means are usually an adequate substitute for normal errors. See [Assumptions and scope](assumptions.md).
+The sample-size calculation assumes the one-way normal model: independent users, a common variance across arms, and normal errors. At A/B scale, approximately normal arm means are usually an adequate substitute for normal errors. See [Assumptions and scope](assumptions.md).
 
 ### Sensitivity to the inputs
 
@@ -212,7 +195,7 @@ $n$ is roughly proportional to $(\sigma/\delta^*)^2$, so halving $\delta^*$ mult
 
 For an analysis with `unconstrained_mcb_edwards_hsu`, use `unconstrained_mcb_edwards_hsu_sample_size`, and `unconstrained_mcb_edwards_hsu_correct_useful_probability` for the probability. The same two conclusions hold, with the Edwards-Hsu screening set in place of $G$. Edwards-Hsu intervals use a two-sided critical value, which Hsu writes $|d|$. It is a separate constant, not the absolute value of $d$, and it is larger, so more users are needed: 4842 per arm in the running example, compared with 3797. In exchange, the analysis gives two-sided bounds on how far each arm is below the best (see [Edwards-Hsu Unconstrained MCB](edwards_hsu.md)).
 
-Plan with the procedure and $\alpha$ that the analysis will use, since the guarantee applies to that analysis.
+Plan with the procedure and $\alpha$ that the analysis will use, since the computed sample size applies only to that analysis.
 
 ## Checking the plan by simulation
 
@@ -264,7 +247,7 @@ In this configuration, `Control` and `A` are more than 4 minutes below the best,
 
 ## Derivations
 
-### Why the two conclusions follow
+### Proof that correct, narrow intervals give both conclusions
 
 The computation uses an event from the proof of Hsu's Theorem 4.1.1, called the correctness event here. It has probability exactly $1 - \alpha$, and when it occurs every interval covers its target. With $b$ the true best arm, the event is
 
@@ -303,7 +286,7 @@ If arm $i$ is more than $2\delta^*$ below the best and $w < \delta^*$, then $\mu
 
 The observed winner's sample mean is at least as large as every other arm's, so each estimated difference in its lower bound is at least 0, and the lower bound is at least $-w > -\delta^*$. Because its interval is correct, the winner's true $\theta$ is also above $-\delta^*$, which means it is within $\delta^*$ of the true best.
 
-The next figure compares the luck each arm got with the luck it needs, over 200 simulated tests with 3797 users per arm. The tests are consecutive draws and were not selected. Each dot is one test, placed by the arm's luck in that test, and its shape and shade show the outcome from `constrained_mcb`.
+The next figure compares the luck each arm got with the luck it needs, over 200 simulated tests with 3797 users per arm. Each dot is one test, placed by the arm's luck in that test, and its shape and shade show the outcome from `constrained_mcb`.
 
 ```{figure} figures/sample_size_luck_needed.svg
 :alt: Four rows of stacked dots, one row per arm other than D, with one dot per simulated test placed by that arm's luck. Each row has two dashed lines, the luck needed to stay in and the luck needed to win. A thick line marks w, about 1.98. For C both dashed lines are left of w, and the dots change from ruled out to kept to won at those lines. For B the stay-in line is left of w and the win line is right of it. For A and Control both dashed lines are right of w and every dot is ruled out.
