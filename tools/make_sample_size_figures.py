@@ -28,6 +28,8 @@ INK, INK_2, MUTED, AXIS = "#0b0b0b", "#52514e", "#898781", "#c3c2b7"
 RED, C_BLUE, D_BLUE = "#e34948", "#6da7ec", "#184f95"
 RED_TINT, GRAY_TINT, BLUE_TINT = "#fbe0df", "#f0efec", "#d6e6fa"
 BAR, HAIRLINE = "#ecebe5", "#d6d4cd"
+LUCK_BAR, RULED_OUT_DOT = "#b9b7ae", "#b5b3aa"
+ON_WHITE = dict(fc="white", ec="none", pad=1.5)
 
 STYLE = {
     # Carlito has Lato's metrics, the docs theme's body font, plus Greek. DejaVu is the fallback.
@@ -70,10 +72,14 @@ def analyze(means: np.ndarray, n: int, sigma_hat: float) -> SimulatedTest:
 def followed_test(n: int) -> SimulatedTest:
     # Seed chosen so the test shows the guide's story: the true best loses at n = 3797,
     # a clearly worse arm survives at n = 1000, and the gray arm goes at n = 15,000.
-    rng = np.random.default_rng(35972)
+    rng = np.random.default_rng(245003)
     errors = rng.normal(size=K)
     sigma_hat = SIGMA * np.sqrt(rng.chisquare(NU) / NU)
-    return analyze(TRUE_MEANS + errors * SIGMA / np.sqrt(n), n, sigma_hat)
+    test = analyze(TRUE_MEANS + errors * SIGMA / np.sqrt(n), n, sigma_hat)
+    # The guide teaches the correctness event from this test, so the test must satisfy it.
+    true_gaps, gaps_in_test = BEST - TRUE_MEANS, test.means[TRUE_MEANS.argmax()] - test.means
+    assert np.all(true_gaps - gaps_in_test < test.w), "a chosen test must satisfy the correctness event"
+    return test
 
 
 def consecutive_tests(reps: int = 16) -> list[SimulatedTest]:
@@ -107,6 +113,38 @@ def draw_lines(ax: plt.Axes, test: SimulatedTest, top: float) -> None:
 def draw_bracket(ax: plt.Axes, start: float, end: float, y: float) -> None:
     style = dict(arrowstyle="|-|,widthA=.35,widthB=.35", color=INK, lw=1.6, shrinkA=0, shrinkB=0)
     ax.annotate("", (start, y), (end, y), arrowprops=style)
+
+
+def draw_zone_strip(ax: plt.Axes, left: float, y: float, height: float, clearly_worse_x: float) -> None:
+    strips = (
+        (left, OUTER, RED_TINT, "clearly worse", clearly_worse_x),
+        (OUTER, INNER, GRAY_TINT, "gray zone", 51.5),
+        (INNER, BEST, BLUE_TINT, "good enough", 53.5),
+    )
+    for start, end, color, name, x in strips:
+        ax.add_patch(Rectangle((start + 0.015, y), end - start - 0.03, height, fc=color, lw=0, zorder=2))
+        ax.text(x, y + height / 2, name, ha="center", va="center", color=INK, fontweight="bold", zorder=3)
+
+
+def draw_ring(ax: plt.Axes, x: float, y: float, size: float = 11) -> None:
+    ax.plot(x, y, "o", ms=size, mfc="white", mec=INK_2, mew=1.5, zorder=5)
+
+
+def draw_dot(ax: plt.Axes, x: float, y: float, size: float = 11) -> None:
+    ax.plot(x, y, "o", ms=size, mfc=INK, mec="white", mew=1.2, zorder=5)
+
+
+def draw_gap(ax: plt.Axes, start: float, end: float, y: float, color: str = INK_2) -> None:
+    ax.plot([start, end], [y, y], color=color, lw=5, solid_capstyle="butt", zorder=3)
+
+
+def draw_links(ax: plt.Axes, pairs: tuple, top: float, bottom: float) -> None:
+    for x_true, x_test in pairs:
+        ax.plot([x_true, x_test], [top, bottom], color=MUTED, lw=0.9, ls=(0, (3, 2)), zorder=2)
+
+
+def centered(ax: plt.Axes, x: float, y: float, text: str, **style) -> None:
+    ax.text(x, y, text, ha="center", va="center", color=INK, **style)
 
 
 def set_minutes_axis(ax: plt.Axes) -> None:
@@ -213,14 +251,7 @@ def many_tests_figure() -> plt.Figure:
     y_truth, y_strip = rows + 0.95, rows + 2.35
     for x in (OUTER, INNER, BEST):
         ax.plot([x, x], [-0.5, y_strip], color=HAIRLINE, lw=0.8, zorder=1.5)
-    strips = (
-        (left, OUTER, RED_TINT, "clearly worse", 49.75),
-        (OUTER, INNER, GRAY_TINT, "gray zone", 51.5),
-        (INNER, BEST, BLUE_TINT, "good enough", 53.5),
-    )
-    for start, end, color, name, x in strips:
-        ax.add_patch(Rectangle((start + 0.015, y_strip), end - start - 0.03, 1.0, fc=color, lw=0, zorder=2))
-        ax.text(x, y_strip + 0.5, name, ha="center", va="center", color=INK, fontweight="bold", zorder=3)
+    draw_zone_strip(ax, left, y_strip, 1.0, 49.75)
 
     # Identity never rests on hue alone: D has its own shape and C and D differ in lightness.
     color = {"Control": RED, "A": RED, "B": INK, "C": C_BLUE, "D": D_BLUE}
@@ -256,9 +287,230 @@ def many_tests_figure() -> plt.Figure:
     return fig
 
 
+def luck_in_one_test_figure() -> plt.Figure:
+    test = followed_test(PLANNED_N)
+    a_true, c_true = TRUE_MEANS[1], TRUE_MEANS[3]
+    a, c, d = test.means[1], test.means[3], test.means[4]
+    a_true_gap, c_true_gap = BEST - a_true, BEST - c_true
+    a_gap_in_test = d - a
+    a_luck, c_luck = a_true_gap - a_gap_in_test, c_true_gap + c - d
+    largest_luck = np.max((BEST - TRUE_MEANS) - (d - test.means))
+    narrated = [test.w, 2 * test.w, a_gap_in_test, a_luck, a - a_true, BEST - d, c - d, c_luck, largest_luck]
+    assert test.winner == "C" and [round(float(x), 2) for x in narrated] == [1.97, 3.93, 3.10, 1.40, 0.42, 0.98, 0.21, 1.21, 1.87], (
+        "the guide narrates this outcome"
+    )
+
+    fig, ax = plt.subplots(figsize=(9.2, 6.0))
+    left, right = 49.1, 58.25
+    y_strip = 9.15
+    for x in (OUTER, INNER, BEST):
+        ax.plot([x, x], [-0.15, y_strip], color=HAIRLINE, lw=0.8, zorder=1)
+    draw_zone_strip(ax, left, y_strip, 0.62, (left + OUTER) / 2)
+
+    a_true_row, a_test_row, a_leader_row, c_true_row, c_test_row = 7.7, 6.45, 5.2, 2.6, 1.35
+    heading = dict(color=INK, fontweight="bold", va="center", bbox=ON_WHITE, zorder=4)
+    ax.text(left + 0.02, 8.6, "A is more than 2w below D, so it is ruled out", **heading)
+    ax.text(left + 0.02, 3.5, "C won, so its true gap to D is less than w", **heading)
+
+    draw_gap(ax, a_true, BEST, a_true_row)
+    draw_links(ax, ((a_true, a), (BEST, d)), a_true_row - 0.2, a_test_row + 0.2)
+    draw_gap(ax, a_true, a, a_test_row, LUCK_BAR)
+    draw_gap(ax, d, BEST, a_test_row, LUCK_BAR)
+    draw_gap(ax, a, d, a_test_row)
+    draw_gap(ax, a, c, a_leader_row)
+    draw_gap(ax, c_true, BEST, c_true_row)
+    draw_links(ax, ((c_true, c), (BEST, d)), c_true_row - 0.2, c_test_row + 0.2)
+    draw_gap(ax, d, c, c_test_row)
+    for x, y in ((a_true, a_true_row), (BEST, a_true_row), (c_true, c_true_row), (BEST, c_true_row)):
+        draw_ring(ax, x, y)
+    for x, y in ((a, a_test_row), (d, a_test_row), (a, a_leader_row), (c, a_leader_row), (d, c_test_row), (c, c_test_row)):
+        draw_dot(ax, x, y)
+
+    above, below = 0.42, -0.42
+    arm_names = (
+        (a_true, a_true_row + above, "A"),
+        (BEST, a_true_row + above, "D"),
+        (a, a_test_row + below, "A"),
+        (d, a_test_row + below, "D"),
+        (a, a_leader_row + below, "A"),
+        (c, a_leader_row + below, "C leads"),
+        (c_true, c_true_row + above, "C"),
+        (BEST, c_true_row + above, "D"),
+        (d - 0.02, c_test_row + below, "D"),
+        (c + 0.02, c_test_row + below, "C"),
+    )
+    for x, y, name in arm_names:
+        centered(ax, x, y, name)
+    centered(ax, 52.25, a_true_row + 0.3, f"true gap {a_true_gap:.2f}", fontsize=12)
+    centered(ax, (a + d) / 2, a_test_row + 0.3, f"gap in the test {a_gap_in_test:.2f}", fontsize=12)
+    ax.plot([test.cut] * 2, [a_leader_row - 0.38, a_leader_row + 0.38], color=INK, lw=2.6, zorder=6, solid_capstyle="butt")
+    centered(ax, test.cut, a_leader_row - 0.62, "cut line", fontsize=11.5)
+    draw_bracket(ax, test.cut, c, a_leader_row + 0.42)
+    centered(ax, (test.cut + c) / 2, a_leader_row + 0.68, f"w = {test.w:.2f}", fontsize=12)
+    side_label = dict(ha="right", va="center", color=INK, fontsize=12, bbox=ON_WHITE, zorder=4)
+    ax.text(53.2, c_true_row, f"true gap {c_true_gap:.2f}", **side_label)
+    ax.text(d - 0.3, c_test_row, f"C ahead by {c - d:.2f}", **side_label)
+
+    note = dict(va="center", color=INK, fontsize=12)
+    x_note = 54.95
+    ax.text(x_note, a_true_row, f"more than 2w = {2 * test.w:.2f}", **note)
+    ax.text(
+        x_note,
+        a_test_row,
+        f"luck = {a_true_gap:.2f} − {a_gap_in_test:.2f} = {a_luck:.2f}, less than w,\nso the gap in the test is more than w",
+        **note,
+    )
+    ax.text(x_note, a_leader_row, "the leader is at or ahead of D, so A is\nmore than w behind it and is ruled out", **note)
+    ax.text(x_note, c_true_row, "less than w, and w is less than δ*", **note)
+    ax.text(
+        x_note,
+        c_test_row,
+        f"luck = {c_true_gap:.2f} + {c - d:.2f} = {c_luck:.2f}, less than w.\nA winner's luck is at least its true gap.",
+        **note,
+    )
+
+    y_key = y_strip + 0.31
+    key = dict(va="center", color=INK, fontsize=11.5)
+    draw_ring(ax, 54.98, y_key, 9)
+    ax.text(55.1, y_key, "true mean", **key)
+    draw_dot(ax, 56.02, y_key, 9)
+    ax.text(56.14, y_key, "sample mean", **key)
+    draw_gap(ax, 54.9, 55.14, y_key - 0.62, LUCK_BAR)
+    ax.text(55.2, y_key - 0.62, "luck", **key)
+
+    ax.set_xlim(left, right)
+    ax.set_ylim(0.1, y_strip + 0.7)
+    ax.set_yticks([a_true_row, a_test_row, a_leader_row, c_true_row, c_test_row])
+    ax.set_yticklabels(["True means", "In the test", "Against\nthe leader", "True means", "In the test"])
+    set_minutes_axis(ax)
+    ax.set_xlabel("Minutes watched per user", color=INK_2, labelpad=6, x=0.33)
+    ax.spines["bottom"].set_bounds(left, BEST + 0.3)
+    fig.tight_layout()
+    return fig
+
+
+def dot_columns(x: np.ndarray, width: float, anchor: float, rank: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    # Column edges fall on the row's thresholds, so a dot never straddles a dashed line.
+    columns = np.floor((x - anchor) / width).astype(int)
+    level = np.zeros(len(x))
+    for column in np.unique(columns):
+        members = np.where(columns == column)[0]
+        level[members[np.argsort(rank[members], kind="stable")]] = np.arange(len(members))
+    return anchor + (columns + 0.5) * width, level
+
+
+def luck_needed_figure() -> plt.Figure:
+    tests = consecutive_tests(200)
+    means = np.array([test.means for test in tests])
+    each_w = np.array([test.w for test in tests])
+    w = float(each_w.mean())
+    arms = ARMS[:-1]  # D is the arm that luck is measured against
+    true_gaps = BEST - TRUE_MEANS[:-1]
+    luck = true_gaps - (means[:, [-1]] - means[:, :-1])
+    correct = (luck < each_w[:, None]).all(axis=1)
+    kept = {arm: np.array([arm not in test.ruled_out for test in tests]) for arm in arms}
+    won = {arm: np.array([test.winner == arm for test in tests]) for arm in arms}
+    gray_past_b = (luck[:, 2] > true_gaps[2] - w) & ~kept["B"]
+    black_before_c = (luck[:, 3] < true_gaps[3] - w) & kept["C"]
+    assert correct.sum() == 191 and gray_past_b.sum() == 1 and black_before_c.sum() == 1, "the guide narrates this outcome"
+    assert [round(float(x), 2) for x in (each_w.min(), w, each_w.max())] == [1.95, 1.98, 2.02], "the guide narrates this outcome"
+    lead_over_d = means[gray_past_b, 3] - means[gray_past_b, 4]
+    assert round(float(lead_over_d[0]), 2) == 1.52, "the guide narrates this outcome"
+    conclusions_held = [{"Control", "A"} <= test.ruled_out and test.winner in ("C", "D") for test in tests]
+    assert np.all(conclusions_held), "the guide narrates this outcome"
+
+    fig, ax = plt.subplots(figsize=(10.4, 5.9))
+    left, right = -3.0, 4.85
+    dot_size, level_height = 4.7, 0.083
+    baseline = {"C": 3.72, "B": 2.48, "A": 1.24, "Control": 0.0}
+    verdicts = {
+        "C": ("good enough", BLUE_TINT, "can stay in,\ncan win"),
+        "B": ("gray zone", GRAY_TINT, "can stay in,\ncannot win"),
+        "A": ("clearly worse", RED_TINT, "cannot stay in"),
+        "Control": ("clearly worse", RED_TINT, "cannot stay in"),
+    }
+
+    top = baseline["C"] + 1.2
+    ax.add_patch(Rectangle((w, -0.1), right - w, top + 0.1, fc=BAR, lw=0, zorder=0))
+    ax.plot([w, w], [-0.1, top], color=INK, lw=2.2, zorder=4, solid_capstyle="butt")
+    ax.text(w, top + 0.05, f"w, about {w:.2f}", ha="center", va="bottom", color=INK, fontweight="bold")
+    above_rows = dict(va="center", color=INK_2, fontsize=11.5)
+    ax.text(w + 0.1, top - 0.12, f"{len(tests) - correct.sum()} of the {len(tests)} tests have a dot here", ha="left", **above_rows)
+    ax.text(w - 0.1, top - 0.12, "in a correct test, every dot is left of w", ha="right", **above_rows)
+
+    dashes = (0, (4, 2))
+    for i, arm in enumerate(arms):
+        base = baseline[arm]
+        x, level = dot_columns(luck[:, i], w / 24, true_gaps[i], kept[arm].astype(int) + won[arm])
+        y = base + level * level_height
+        out, stayed, winner = ~kept[arm], kept[arm] & ~won[arm], won[arm]
+        ax.plot([left, right], [base - 0.06, base - 0.06], color=AXIS, lw=0.8, zorder=1)
+        ax.plot(x[out], y[out], "o", ms=dot_size, mfc=RULED_OUT_DOT, mec="white", mew=0.3, ls="", zorder=3)
+        ax.plot(x[stayed], y[stayed], "o", ms=dot_size, mfc=INK, mec="white", mew=0.3, ls="", zorder=3)
+        ax.plot(x[winner], y[winner], "D", ms=dot_size * 0.95, mfc=D_BLUE, mec="white", mew=0.3, ls="", zorder=3)
+        line_top = base + 0.72
+        for needed, label in ((true_gaps[i] - w, "to stay in"), (true_gaps[i], "to win")):
+            ax.plot([needed, needed], [base - 0.06, line_top], color=INK, lw=1.3, ls=dashes, zorder=2.5)
+            ax.text(
+                needed,
+                line_top + 0.03,
+                f"{label} {needed:.2f}".replace("-", "−"),
+                ha="center",
+                va="bottom",
+                color=INK,
+                fontsize=10.5,
+                bbox=dict(fc="white" if needed < w else BAR, ec="none", pad=0.8),
+                zorder=2.6,
+            )
+        zone, tint, verdict = verdicts[arm]
+        ax.text(
+            right + 0.14,
+            base + 0.62,
+            zone,
+            ha="left",
+            va="center",
+            color=INK,
+            fontweight="bold",
+            fontsize=11.5,
+            bbox=dict(fc=tint, ec="none", pad=2.5),
+            clip_on=False,
+        )
+        ax.text(right + 0.14, base + 0.42, verdict, ha="left", va="top", color=INK, fontsize=11.5, clip_on=False)
+
+    ax.set_xlim(left, right)
+    ax.set_ylim(-0.2, top + 0.34)
+    ax.set_yticks([baseline[arm] + 0.32 for arm in arms])
+    ax.set_yticklabels([f"{arm}\ntrue gap {gap:.2f}" for arm, gap in zip(arms, true_gaps)], fontsize=12)
+    ax.set_xticks(range(-3, 5))
+    ax.set_xticklabels([str(tick).replace("-", "−") for tick in range(-3, 5)])
+    ax.set_xlabel("Luck: true gap to D minus gap in the test, in minutes", color=INK_2, labelpad=6)
+    ax.plot([], [], "o", ms=6, mfc=RULED_OUT_DOT, mec="white", ls="", label="ruled out")
+    ax.plot([], [], "o", ms=6, mfc=INK, mec="white", ls="", label="kept")
+    ax.plot([], [], "D", ms=5.5, mfc=D_BLUE, mec="white", ls="", label="won the test")
+    ax.plot([], [], color=INK, lw=1.3, ls=dashes, label="luck needed")
+    ax.legend(
+        loc="lower left",
+        bbox_to_anchor=(-0.01, 0.955),
+        ncol=4,
+        frameon=False,
+        fontsize=11.5,
+        handletextpad=0.1,
+        columnspacing=1.0,
+    )
+    ax.spines["bottom"].set_visible(False)
+    fig.tight_layout()
+    return fig
+
+
 def main(output_dir: Path = DEFAULT_OUTPUT_DIR) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    figures = {"one_test": one_test_figure, "more_users": more_users_figure, "many_tests": many_tests_figure}
+    figures = {
+        "one_test": one_test_figure,
+        "more_users": more_users_figure,
+        "many_tests": many_tests_figure,
+        "luck_in_one_test": luck_in_one_test_figure,
+        "luck_needed": luck_needed_figure,
+    }
     with plt.rc_context(STYLE):
         for name, make_figure in figures.items():
             fig = make_figure()

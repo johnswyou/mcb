@@ -16,6 +16,8 @@ def test_figures_still_show_what_the_guide_narrates(tmp_path):
     figures.main(tmp_path)
 
     assert sorted(path.name for path in tmp_path.iterdir()) == [
+        "sample_size_luck_in_one_test.svg",
+        "sample_size_luck_needed.svg",
         "sample_size_many_tests.svg",
         "sample_size_more_users.svg",
         "sample_size_one_test.svg",

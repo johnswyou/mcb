@@ -79,7 +79,7 @@ The margin and $w$ do different jobs. $\delta^*$ and $2\delta^*$ are lines drawn
 The figures in this section use the true means from [Checking the plan by simulation](#checking-the-plan-by-simulation). With $\delta^* = 2$, `Control` and `A` are clearly worse, `B` is in the gray zone, and `C` and `D` are good enough.
 
 ```{figure} figures/sample_size_one_test.svg
-:alt: Five arms on an axis of minutes watched, over three zones measured from the true best of 54.5. Rings show true means and dots show sample means. C leads at 53.54 and the cut line sits w = 1.98 behind it at 51.57. Control and A are behind the line and ruled out. B, C and D are kept.
+:alt: Five arms on an axis of minutes watched, over three zones measured from the true best of 54.5. Rings show true means and dots show sample means. C leads at 53.72 and the cut line sits w = 1.97 behind it at 51.76. Control and A are behind the line and ruled out. B, C and D are kept.
 :width: 100%
 
 One simulated test with 3797 users per arm. This test was chosen because it shows the harder case, in which the true best arm does not lead.
@@ -90,7 +90,7 @@ One simulated test with 3797 users per arm. This test was chosen because it show
 More users shorten the ruler. The next figure repeats this test at three sample sizes, with its random errors scaled to each $n$ and $\hat{\sigma}$ held fixed, so $n$ is the only thing that changes. The bars under each panel compare $w$ with $\delta^*$.
 
 ```{figure} figures/sample_size_more_users.svg
-:alt: Three panels of the same test at 1000, 3797 and 15,000 users per arm. As n grows, sample means move toward true means and w falls from 3.86 to 1.98 to 1.00, compared with a fixed delta-star of 2. At 1000, A is clearly worse but stays in. At 3797, Control and A are out. At 15,000, gray-zone arm B is out too.
+:alt: Three panels of the same test at 1000, 3797 and 15,000 users per arm. As n grows, sample means move toward true means and w falls from 3.83 to 1.97 to 0.99, compared with a fixed delta-star of 2. At 1000, A is clearly worse but stays in. At 3797, Control and A are out. At 15,000, gray-zone arm B is out too.
 :width: 100%
 
 The same test at three sample sizes.
@@ -274,6 +274,23 @@ $$
 
 that is, the estimated difference between any arm and arm $b$ overstates the true difference by less than $w$.
 
+Call the left side of this inequality arm $i$'s *luck*. It equals the arm's true gap to arm $b$, $\mu_b - \mu_i$, minus its gap to arm $b$ in the test, $\hat{\mu}_b - \hat{\mu}_i$. Luck is positive when the test shows the arm closer to arm $b$ than it really is. A test in which the correctness event occurs is called a *correct test* here. If the same experiment were repeated many times with new users, a fraction $1 - \alpha$ of the runs would be correct tests. A real test cannot be checked, because its true means are unknown.
+
+The next figure shows luck in the simulated test from [What the sample size controls](#what-the-sample-size-controls), where arm $b$ is `D`.
+
+```{figure} figures/sample_size_luck_in_one_test.svg
+:alt: One simulated test on an axis of minutes watched, below the three zones. The upper group shows arm A with a true gap to D of 4.50, more than 2w = 3.93, and a gap in the test of 3.10, so its luck is 1.40. C leads, the cut line is w = 1.97 behind C, and A is behind the cut line. The lower group shows arm C with a true gap to D of 1.00. C is 0.21 ahead of D in the test, so its luck is 1.21, less than w.
+:width: 100%
+
+One simulated test with 3797 users per arm. It is a correct test, because the largest luck of any arm is 1.87 and $w$ is 1.97.
+```
+
+`A` is truly 4.50 behind `D`, which is more than $2w = 3.93$. In the test it is 3.10 behind, so its luck is 1.40. The light gray bars show that amount: `A`'s sample mean is 0.42 above its true mean, and `D`'s is 0.98 below its true mean. The gap in the test is still more than $w$. The leader's sample mean is at or above `D`'s, so `A` is behind the cut line and is ruled out.
+
+`C` is truly 1.00 behind `D`, but its sample mean is 0.21 above `D`'s, so its luck is $1.00 + 0.21 = 1.21$. A winner's gap in the test is 0 or less, so its luck is at least its true gap. Luck is below $w$ in a correct test, so the winner's true gap is below $w$.
+
+The next two paragraphs give these two arguments for any arm.
+
 For an arm $i \neq b$, the upper bound is $(\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j + w)^+$, where $x^+ = \max(x, 0)$. The largest of the other sample means is at least $\hat{\mu}_b$, so when the correctness event occurs,
 
 $$
@@ -285,6 +302,29 @@ $$
 If arm $i$ is more than $2\delta^*$ below the best and $w < \delta^*$, then $\mu_i - \mu_b < -2\delta^* < -2w$, the expression inside is negative, and the upper bound is 0. Arm $i$ is ruled out.
 
 The observed winner's sample mean is at least as large as every other arm's, so each estimated difference in its lower bound is at least 0, and the lower bound is at least $-w > -\delta^*$. Because its interval is correct, the winner's true $\theta$ is also above $-\delta^*$, which means it is within $\delta^*$ of the true best.
+
+The next figure compares the luck each arm got with the luck it needs, over 200 simulated tests with 3797 users per arm. The tests are consecutive draws and were not selected. Each dot is one test, placed by the arm's luck in that test, and its shape and shade show the outcome from `constrained_mcb`.
+
+```{figure} figures/sample_size_luck_needed.svg
+:alt: Four rows of stacked dots, one row per arm other than D, with one dot per simulated test placed by that arm's luck. Each row has two dashed lines, the luck needed to stay in and the luck needed to win. A thick line marks w, about 1.98. For C both dashed lines are left of w, and the dots change from ruled out to kept to won at those lines. For B the stay-in line is left of w and the win line is right of it. For A and Control both dashed lines are right of w and every dot is ruled out.
+:width: 100%
+
+Each arm's luck in 200 simulated tests. The dashed lines show the luck an arm needs, and the thick line shows $w$.
+```
+
+To win, an arm's gap in the test must be 0 or less, so its luck must be at least its true gap. To stay in, its sample mean must be less than $w$ below the leader's sample mean. The leader's sample mean is at or above `D`'s, so the arm's luck must be more than its true gap minus $w$. For example, `B` has a true gap of 3.50, so it needs luck above $3.50 - 1.98 = 1.52$ to stay in. `C` needs $-0.98$, which means `C` stays in even if the test shows it up to 0.98 further behind `D` than it really is.
+
+The thick line is drawn at 1.98, the average $w$ across the tests. Each test has its own $w$, between 1.95 and 2.02, because $\hat{\sigma}$ differs from test to test. In a correct test every dot is to the left of that test's $w$, and 191 of the 200 tests are correct. Comparing the dashed lines with $w$ gives what each arm can do in a correct test:
+
+- `Control` and `A` need 2.52 to stay in, which is more than $w$, so they are ruled out.
+- `B` needs 1.52 to stay in, which is less than $w$, and 3.50 to win, which is more than $w$. It can stay in but cannot win.
+- `C` needs 1.00 to win, which is less than $w$, so it can win.
+
+In general, an arm with a true gap above $2w$ needs more than $w$ to stay in, and an arm with a true gap above $w$ needs more than $w$ to win.
+
+Two dots do not match the lines exactly, because the lines assume `D` leads and use the average $w$. One gray dot is to the right of `B`'s stay-in line, because `C`'s sample mean was 1.52 above `D`'s in that test, which moved the cut line to the right. One black dot is just to the left of `C`'s stay-in line, because that test's $w$ was slightly larger than average.
+
+The other 9 tests are not correct. In all 9, `Control` and `A` were still ruled out and the winner was `C` or `D`, so the two conclusions can hold in a test that is not correct.
 
 The correctness event implies that every interval covers its target, but the intervals can also cover their targets when it does not occur. The computed probabilities are therefore lower bounds on the probability that the intervals cover their targets and are narrow.
 
