@@ -58,7 +58,7 @@ $\delta^*$ divides the arms into three zones according to how far each arm's tru
 
 With the sample size computed here, the following holds with at least the chosen probability: the observed winner is in the good-enough zone, and every arm in the clearly-worse zone is ruled out. Arms in the gray zone may or may not be ruled out. [Derivations](#derivations) explains why the outer boundary is at $2\delta^*$.
 
-Readers used to power calculations may look for a minimum detectable effect. The closest counterpart is $\delta^*$.
+Readers used to power calculations may look for a minimum detectable effect. The closest counterpart is $2\delta^*$.
 
 ## What the sample size controls
 
@@ -109,7 +109,7 @@ Sixteen simulated tests with 3797 users per arm. Each gray bar ends at that test
 
 Both conclusions hold when $w < \delta^*$ and an event called the *correctness event* occurs. [Derivations](#derivations) defines this event and gives the proof. The event has probability exactly $1 - \alpha$ and implies that every interval is correct. Hsu calls the probability that the intervals are correct and $w < \delta^*$ the probability of *correct and useful* inference. `mcb` computes it using the correctness event, and the sample-size functions find the smallest $n$ at which it reaches `target`. Intervals can also be correct without the event, so the computed probability is a lower bound and the plan is conservative.
 
-Because the correctness event has probability $1 - \alpha$, the probability of correct and useful inference is always below $1 - \alpha$ and approaches it as $n$ grows. `target` must therefore be below $1 - \alpha$; otherwise the functions raise `ValueError`. With $\alpha = 0.05$, Hsu's example uses a target of 0.90.
+Because the correctness event has probability $1 - \alpha$, the computed probability is always below $1 - \alpha$ and approaches it as $n$ grows. `target` must therefore be below $1 - \alpha$; otherwise the functions raise `ValueError`. With $\alpha = 0.05$, Hsu's example uses a target of 0.90.
 
 ## The known-$\sigma$ formula and its limits
 
@@ -275,6 +275,8 @@ $$
 \text{true gap}_i \le \text{luck}_i < w < \delta^*.
 $$
 
+The winner's lower bound, $\min(0, \hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j - w)$, is at least $-w$, which is above $-\delta^*$, so its interval shows this.
+
 **Every arm more than $2\delta^*$ below the best is ruled out.** Arm $i$'s upper bound is $(\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j + w)^+$, where $x^+ = \max(x, 0)$, and the arm is ruled out when this bound is 0. If arm $i$ is not ruled out, its sample mean is less than $w$ below every other arm's, including arm $b$'s. Its gap in the test is then below $w$, so
 
 $$
@@ -283,7 +285,7 @@ $$
 
 An arm with a true gap above $2\delta^*$ therefore cannot stay in.
 
-**Why the boundary is $2\delta^*$.** The last inequality adds $w$ twice. An arm stays in if it is less than $w$ behind in the test, and luck can hide up to another $w$ of its true gap. An arm with a true gap below $2w$ can therefore stay in if it is lucky enough. In the running example $w$ is about 1.98 and `B` has a true gap of 3.50, so when `D` leads, luck above 1.52 keeps `B` in, and a correct test allows that much luck. For this reason an arm between $\delta^*$ and $2\delta^*$ below the best may or may not be ruled out.
+**Why the boundary is $2\delta^*$.** The last inequality adds $w$ twice. An arm that stays in is less than $w$ behind arm $b$ in the test, and luck can hide up to another $w$ of its true gap. An arm with a true gap below $2w$ can therefore stay in if it is lucky enough. In the running example $w$ is about 1.98 and `B` has a true gap of 3.50, so when `D` leads, luck above 1.52 keeps `B` in, and a correct test allows that much luck. For this reason an arm between $\delta^*$ and $2\delta^*$ below the best may or may not be ruled out.
 
 The next two figures show these quantities in simulated tests. The first uses the test from [What the sample size controls](#what-the-sample-size-controls). In both, arm $b$ is `D`.
 
