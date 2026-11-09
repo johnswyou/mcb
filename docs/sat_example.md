@@ -1,22 +1,16 @@
-# SAT Worked Example
+# SAT worked example
 
-This page reproduces the SAT mathematics example from Hsu (1996), Sections 4.1.5 and 4.2.5, using the package API.
+This page reproduces the SAT mathematics example in Hsu (1996), Sections 4.1.5 and 4.2.5, at $\alpha = 0.10$. Students are grouped by their major at the start of their second year:
 
-The data summarize SAT mathematics scores by second-year major:
+| Major | $n_i$ | $\hat{\mu}_i$ | Sample SD |
+| --- | ---: | ---: | ---: |
+| Computer science | 103 | 619 | 86 |
+| Engineering | 31 | 629 | 67 |
+| Other | 122 | 575 | 83 |
 
-| Major | Label | $n_i$ | $\hat{\mu}_i$ | Sample SD |
-| --- | ---: | ---: | ---: | ---: |
-| Computer science | 1 | 103 | 619 | 86 |
-| Engineering | 2 | 31 | 629 | 67 |
-| Other | 3 | 122 | 575 | 83 |
+The error degrees of freedom are $\nu = 102 + 30 + 121 = 253$, and the pooled standard deviation is $\hat{\sigma} = 82.52$.
 
-The pooled standard deviation from the three sample variances is approximately 82.52, with
-
-$$
-\nu = (103-1) + (31-1) + (122-1) = 253.
-$$
-
-## Build the Summary
+## Build the summary
 
 ```python
 from mcb import (
@@ -45,84 +39,91 @@ summary = summarize_from_means_ns_and_mse(
 constrained = constrained_mcb(summary, alpha=0.10)
 ```
 
-The finite-df constrained critical values are:
+The critical values $d^i$ and the intervals for $\theta_i = \mu_i - \max_{j \neq i}\mu_j$ are:
 
-| Arm | $d^i$ |
-| --- | ---: |
-| Computer science | 1.605 |
-| Engineering | 1.505 |
-| Other | 1.612 |
+| Arm | $d^i$ | Estimate | Lower | Upper |
+| --- | ---: | ---: | ---: | ---: |
+| Computer science | 1.605 | -10.00 | -35.43 | 17.14 |
+| Engineering | 1.505 | 10.00 | -17.14 | 35.43 |
+| Other | 1.612 | -54.00 | -78.97 | 0.00 |
 
-The simultaneous intervals for
+The bounds for `Other` (arm 3) show how the formulas in [Constrained MCB](constrained_mcb.md) are applied. The upper bound compares `Other` with each of the other arms, using its own critical value $d^3 = 1.612$:
 
 $$
-\theta_i = \mu_i - \max_{j \neq i}\mu_j
+D_3^+ =
+\left[\min\left\{
+\begin{array}{l}
+575 - 619 + 1.612\,(82.52)\sqrt{1/122 + 1/103} \\
+575 - 629 + 1.612\,(82.52)\sqrt{1/122 + 1/31}
+\end{array}
+\right\}\right]^+
+= \left[\min\{-26.21,\ -27.25\}\right]^+ = 0.
 $$
 
-are:
+`Other` is ruled out as the best. The same calculation gives positive upper bounds for the other two arms, so $G$ contains Computer science and Engineering. The lower bound compares `Other` with each arm in $G$, using that arm's critical value ($d^1 = 1.605$, $d^2 = 1.505$):
 
-| Arm | Estimate | Lower | Upper |
-| --- | ---: | ---: | ---: |
-| Computer science | -10.00 | -35.43 | 17.14 |
-| Engineering | 10.00 | -17.14 | 35.43 |
-| Other | -54.00 | -78.97 | 0.00 |
+$$
+D_3^- =
+\min\left\{
+\begin{array}{l}
+575 - 619 - 1.605\,(82.52)\sqrt{1/122 + 1/103} \\
+575 - 629 - 1.505\,(82.52)\sqrt{1/122 + 1/31}
+\end{array}
+\right\}
+= \min\{-61.72,\ -78.97\} = -78.97.
+$$
 
-The constrained candidate-best set is:
+The conclusions at familywise error rate 0.10 are:
 
-```python
-("Computer science", "Engineering")
-```
+- `Other` is not the best. It is at most 78.97 points below the best.
+- Computer science and Engineering could each be the best.
+- Engineering is at most 17.14 points below the better of the other two arms, and Computer science at most 35.43 points below.
 
-`Other` has upper bound 0, so it is ruled out as the true best at familywise level 0.10. Computer science and Engineering remain compatible with being best.
-
-## Edwards-Hsu Unconstrained MCB
+## Edwards-Hsu MCB
 
 ```python
 unconstrained = unconstrained_mcb_edwards_hsu(summary, alpha=0.10)
 ```
 
-The package computes finite-df critical values because $\nu = 253 < 10^6$:
+The critical values $|d|^i$ and the intervals for $\eta_i = \mu_i - \max_j\mu_j$ are:
 
-| Arm | $|d|^i$ |
-| --- | ---: |
-| Computer science | 1.942 |
-| Engineering | 1.860 |
-| Other | 1.946 |
+| Arm | $\lvert d\rvert^i$ | Estimate | Lower | Upper |
+| --- | ---: | ---: | ---: | ---: |
+| Computer science | 1.942 | -10.00 | -41.44 | 0.00 |
+| Engineering | 1.860 | 0.00 | -22.82 | 0.00 |
+| Other | 1.946 | -54.00 | -84.87 | -22.56 |
 
-The direct Edwards-Hsu intervals for
+The screening set $S$ again contains Computer science and Engineering. `Other` is now shown to be between 22.56 and 84.87 points below the best, where constrained MCB showed only that it is at most 78.97 below. The larger critical values move the other lower bounds away from 0: Computer science is at most 41.44 points below the best, against 35.43 under constrained MCB.
 
-$$
-\eta_i = \mu_i - \max_j\mu_j
-$$
+## Plot the intervals
 
-are:
-
-| Arm | Estimate | Lower | Upper |
-| --- | ---: | ---: | ---: |
-| Computer science | -10.00 | -41.44 | 0.00 |
-| Engineering | 0.00 | -22.82 | 0.00 |
-| Other | -54.00 | -84.87 | -22.56 |
-
-The Edwards-Hsu candidate-best set is again:
+`plot_simultaneous_intervals` draws the intervals of either result. It needs the `plot` extra (see [Quickstart](quickstart.md)).
 
 ```python
-("Computer science", "Engineering")
+import matplotlib.pyplot as plt
+
+from mcb.plotting import plot_simultaneous_intervals
+
+fig, ax = plt.subplots(figsize=(9, 4.8))
+plot_simultaneous_intervals(constrained, ax=ax, title="SAT example: constrained MCB")
+fig.tight_layout()
+fig.savefig("sat_constrained_mcb.png", dpi=160)
 ```
 
-`Other` is inferred to be below the global best because its upper bound is strictly negative.
+The script `examples/demo_hsu_mcb_sat.py` in the repository runs this example and saves a plot for each procedure under `examples/output/`.
 
-## About the Textbook's Infinite-df Shortcut
+## Differences from the printed textbook values
 
-Appendix D.2 describes Hsu's original computer code as switching to the infinite-degrees-of-freedom calculation when $\nu > 240$. The package does not use that historical shortcut for $\nu = 253$; it computes the finite-df values directly.
+The constrained results above agree with Section 4.1.5 of the book to within 0.01, the rounding in the book's arithmetic.
 
-For the Edwards-Hsu SAT example, the infinite-df shortcut gives the textbook's displayed critical values:
+The Edwards-Hsu critical values differ from Section 4.2.5 in the second decimal place:
 
-| Arm | Historical $\nu=\infty$ $|d|^i$ | Package finite-df $|d|^i$ |
+| Arm | Book $\lvert d\rvert^i$ | Package $\lvert d\rvert^i$ |
 | --- | ---: | ---: |
 | Computer science | 1.933 | 1.942 |
 | Engineering | 1.852 | 1.860 |
 | Other | 1.937 | 1.946 |
 
-The textbook's constrained example in Section 4.1.5 does not follow this pattern. Hsu's text says $\nu = 253$ was taken as $\infty$ there too, but the printed constrained critical values (1.605, 1.505, 1.612) are the finite-df values; the $\nu = \infty$ values are 1.600, 1.500 and 1.606. The book is therefore inconsistent between its two SAT examples: the package reproduces the printed constrained example, and differs slightly from the printed Edwards-Hsu example unless $\nu = \infty$ is used. The test suite checks both: the constrained example at $\nu = 253$ and the Edwards-Hsu example at $\nu = \infty$.
+Hsu's programs replaced $\nu$ by $\infty$ whenever $\nu > 240$ (Appendix D.2), and the book's Edwards-Hsu values are the $\nu = \infty$ values. The package uses the actual $\nu = 253$, which gives slightly larger critical values and slightly wider intervals. Calling `unconstrained_edwards_hsu_critical_value` with `nu=math.inf` reproduces the book's values.
 
-The finite-df intervals are slightly wider. This is intentional: finite $\nu$ below the package's high-df stability switch is not collapsed to Hsu's `dinfnu = 240` approximation.
+The book says the same replacement was made in the constrained example, but the constrained values it prints (1.605, 1.505, 1.612) are the $\nu = 253$ values. With $\nu = \infty$ they would be 1.600, 1.500 and 1.606.

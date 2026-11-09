@@ -1,28 +1,17 @@
-# Edwards-Hsu Unconstrained MCB
+# Edwards-Hsu unconstrained MCB
 
-`unconstrained_mcb_edwards_hsu` implements the direct Edwards-Hsu unconstrained MCB method for the unbalanced one-way model. The source construction is Hsu (1996), Section 4.2.4.2, equations (4.44) and (4.45).
-
-Use it when you want direct simultaneous intervals for how far each arm is below the global best.
-
-## Target
-
-The target parameter is
+`unconstrained_mcb_edwards_hsu` computes simultaneous confidence intervals $[L_i, U_i]$ for
 
 $$
-\eta_i = \mu_i - \max_{1 \leq j \leq k}\mu_j.
+\eta_i = \mu_i - \max_{1 \leq j \leq k}\mu_j,
+\qquad i = 1,\ldots,k,
 $$
 
-This parameter is always nonpositive:
+arm $i$'s mean minus the best mean. $\eta_i$ is 0 for the best arm and negative for every other arm. These intervals are called *unconstrained* because they need not contain 0, so they can show that an arm is at least some amount below the best. The construction is Hsu (1996), Section 4.2.4.2, equations (4.44) and (4.45). The notation is defined in [Model and notation](model_notation.md).
 
-$$
-\eta_i \leq 0.
-$$
+## Critical values
 
-An arm has $\eta_i = 0$ if it is tied for the true best. If $\eta_i < 0$, the arm is below the best by $|\eta_i|$ units.
-
-## Arm-Specific Critical Values
-
-For each focal arm $i$, let $|d|^i$ be the two-sided Dunnett-with-control critical value computed as if arm $i$ were the control:
+For each arm $i$, $|d|^i$ is the critical value of Dunnett's two-sided method for comparing every other arm with a control, with arm $i$ as the control. It solves
 
 $$
 P\left\{
@@ -36,11 +25,11 @@ P\left\{
 = 1-\alpha.
 $$
 
-Like the constrained critical value, $|d|^i$ is arm-specific in an unbalanced design.
+$|d|^i$ is Hsu's symbol for this constant. It is not the absolute value of the constrained critical value $d^i$, and it is larger than $d^i$. [MCB critical values](mcb_critical_values.md) describes the computation.
 
-## Screening Set
+## Screening set
 
-The Edwards-Hsu screening set is
+The candidate-best set of this procedure is the screening set
 
 $$
 S =
@@ -55,11 +44,11 @@ i:
 \right\}.
 $$
 
-Only arms in $S$ remain compatible with being the global best.
+Arm $i$ is left out of $S$ when some other arm's sample mean exceeds its own by at least $|d|^i$ standard errors.
 
-## Interval Bounds
+## Interval bounds
 
-For each possible best arm $j \in S$, define
+Each arm $j \in S$ could be the best. If arm $j$ is the best, then $\eta_i = \mu_i - \mu_j$, which is bounded by
 
 $$
 L_{ij} =
@@ -69,25 +58,19 @@ L_{ij} =
 - |d|^j\hat{\sigma}\sqrt{n_i^{-1} + n_j^{-1}},
 & i \neq j,
 \end{cases}
-$$
-
-and
-
-$$
+\qquad
 U_{ij} =
 \begin{cases}
 0, & i=j, \\[6pt]
--\left(
+\min\left(0,\
 \hat{\mu}_i - \hat{\mu}_j
 + |d|^j\hat{\sigma}\sqrt{n_i^{-1} + n_j^{-1}}
-\right)^-,
-& i \neq j,
+\right),
+& i \neq j.
 \end{cases}
 $$
 
-where $x^- = \max(-x,0)$.
-
-The final bounds are
+It is not known which arm in $S$ is the best, so the final bounds take the widest range over $S$:
 
 $$
 L_i = \min_{j \in S} L_{ij},
@@ -95,21 +78,16 @@ L_i = \min_{j \in S} L_{ij},
 U_i = \max_{j \in S} U_{ij}.
 $$
 
-The intervals
+The intervals $[L_i, U_i]$ contain all the $\eta_i$ simultaneously with probability at least $1-\alpha$ (Hsu's Theorem 4.2.6).
 
-$$
-[L_i,U_i],
-\qquad i=1,\ldots,k,
-$$
+## Reading the intervals
 
-jointly cover all $\eta_i = \mu_i - \max_j\mu_j$ with probability at least $1-\alpha$ under the one-way normal model.
+- If $U_i < 0$, arm $i$ is not the best. It is between $-U_i$ and $-L_i$ below the best.
+- If $U_i = 0$, the data do not show arm $i$ to be any amount below the best. It is at most $-L_i$ below.
+- If $S$ contains a single arm $M$, then $L_M = U_M = 0$ and arm $M$ is the best.
 
-## Interpretation
+Use $S$ (the `candidate_best_set` field), not $U_i = 0$, to see which arms could be the best. Every arm in $S$ has $U_i = 0$, but an arm outside $S$ can have $U_i = 0$ as well: it is ruled out as the best without being shown to be any particular amount below it.
 
-Read the Edwards-Hsu interval as a gap-to-best interval:
+The reported estimate is $\hat{\mu}_i - \max_j \hat{\mu}_j$, which is 0 for the arm with the highest sample mean.
 
-- If $U_i < 0$, arm $i$ is inferred to be below the true best.
-- If $i \in S$, then $U_i = 0$ and arm $i$ remains compatible with being globally best. The converse does not hold: an arm outside $S$ can also have $U_i = 0$, so use $S$, not $U_i = 0$, to decide which arms could be best.
-- The estimate reported by `mcb` is $\hat{\mu}_i - \max_j \hat{\mu}_j$, so the sample-best arm has estimate 0.
-
-The Edwards-Hsu result targets $\eta_i$, not $\theta_i$. Hsu notes that when an interval for $\eta_i$ is entirely negative, the same numerical interval can be read as an interval for $\mu_i - \max_{j \neq i}\mu_j$, because the best arm cannot be $i$ in that case. The package reports the direct $\eta_i$ intervals.
+An interval for $\eta_i$ that lies entirely below 0 is also an interval for $\theta_i = \mu_i - \max_{j \neq i}\mu_j$, because the two parameters are equal for an arm that is not the best.

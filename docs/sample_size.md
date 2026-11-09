@@ -4,7 +4,7 @@
 
 ## Running example
 
-A streaming service plans to test four new recommendation algorithms against the current one, so there are $k = 5$ arms. Users are assigned to the arms evenly and at random, and about 2,500 new users arrive each day. The metric is minutes watched per user in the first week, with larger values better. Last month's data put its standard deviation at about 40 minutes.
+A streaming service plans to test four new recommendation algorithms against the current one, so there are $k = 5$ arms. Users are assigned to the arms evenly and at random, and about 2500 new users arrive each day. The metric is minutes watched per user in the first week, with larger values better. Last month's data put its standard deviation at about 40 minutes.
 
 The results will be analyzed with `constrained_mcb`. For each arm it gives a confidence interval for
 
@@ -46,7 +46,7 @@ At the end of the test the team wants to draw two conclusions:
 1. The arm with the highest sample mean (the *observed winner*) is less than $\delta^*$ below the true best arm, so it can be shipped.
 2. Every arm more than $2\delta^*$ below the true best arm is ruled out.
 
-Both conclusions need a tolerance. Identifying the exact best arm is not a realistic goal: two algorithms that differ by 0.01 minutes cannot be separated by a test of practical size, and the difference would not matter. The tolerance is $\delta^* > 0$, the value the team chooses before the test, in the units of the metric. A shortfall from the best smaller than $\delta^*$ is treated as negligible.
+Both conclusions are stated with the tolerance $\delta^*$ because identifying the exact best arm is not a realistic goal: two algorithms that differ by 0.01 minutes cannot be separated by a test of practical size, and the difference would not matter. A shortfall from the best smaller than $\delta^*$ is treated as negligible.
 
 $\delta^*$ divides the arms into three zones according to how far each arm's true mean is below the best:
 
@@ -62,23 +62,25 @@ Readers used to power calculations may look for a minimum detectable effect. The
 
 ## What the sample size controls
 
-At the end of the test, the team wants to conclude that the observed winner is within $\delta^*$ of the best and that every arm more than $2\delta^*$ below the best is ruled out. Two things can go wrong. First, an interval can miss its true value. MCB keeps the probability of this at or below $\alpha$ at every sample size, so adding users does not change it. Second, the intervals can all be correct but too wide to rule any arm out or to show that the winner is close to the best. The sample size controls the width of the intervals.
+Two things can prevent the team from drawing the two conclusions. First, an interval can miss its true value. MCB keeps the probability of this at or below $\alpha$ at every sample size, so adding users does not change it. Second, the intervals can all contain their true values but be too wide to rule any arm out or to show that the winner is close to the best. The sample size controls the width of the intervals.
 
-In a balanced test with $n$ users per arm, every constrained MCB bound is an estimated difference between two arm means, plus or minus the same amount
+In a balanced test with $n$ users per arm, the constrained MCB interval for arm $i$ is
 
 $$
-w = d\,\hat{\sigma}\sqrt{2/n},
+\left[\min\left(0,\ \hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j - w\right),\ \max\left(0,\ \hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j + w\right)\right],
+\qquad
+w = d\,\hat{\sigma}\sqrt{2/n}
 $$
 
-with the confidence interval's upper bound clipped at 0. Where:
+(see [Constrained MCB](constrained_mcb.md#balanced-designs)). The same $w$ applies to every arm. It has three factors:
 
 - $\sqrt{2/n}$ is the standard error of a difference between two arm means, in units of $\sigma$. It is the only factor set directly by the design, and it decreases like $1/\sqrt{n}$.
 - $\hat{\sigma}$ is the pooled standard deviation estimated from the test data. It is random. Before the test, all that is known is that it will be close to $\sigma$.
-- $d$ is the MCB critical value. It depends on $k$, $\alpha$ and the error degrees of freedom $\nu = k(n-1)$, and it decreases slightly as $n$ grows. For $k = 5$ and $\alpha = 0.05$ it is about 2.16 when $n$ is large.
+- $d$ is the MCB critical value, which is the same for every arm in a balanced design (see [MCB critical values](mcb_critical_values.md)). It depends on $k$, $\alpha$ and the error degrees of freedom $\nu = k(n-1)$, and it decreases slightly as $n$ grows. For $k = 5$ and $\alpha = 0.05$ it is about 2.16 when $n$ is large.
 
-$\delta^*$ and $w$ do different things. $\delta^*$ and $2\delta^*$ are lines drawn before the test, measured from the true best arm. $w$ is a ruler that the test supplies, measured back from the highest sample mean. The position it reaches is called the *cut line* here: an arm whose sample mean is at or behind the cut line has an upper bound of 0 and is ruled out.
+$\delta^*$ and $2\delta^*$ are fixed before the test and are measured from the true best arm. $w$ comes from the test's data and is measured back from the highest sample mean. The point $w$ below the highest sample mean is called the *cut line* here: an arm whose sample mean is at or behind the cut line has an upper bound of 0 and is ruled out.
 
-The figures in this section use the true means from [Checking the plan by simulation](#checking-the-plan-by-simulation). With $\delta^* = 2$, `Control` and `A` are clearly worse, `B` is in the gray zone, and `C` and `D` are good enough.
+The figures in this section show simulated tests in which the true means are 50.0 minutes for `Control` and `A`, 51.0 for `B`, 53.5 for `C` and 54.5 for `D`. With $\delta^* = 2$, `Control` and `A` are clearly worse, `B` is in the gray zone, and `C` and `D` are good enough.
 
 ```{figure} figures/sample_size_one_test.svg
 :alt: Five arms on an axis of minutes watched, over three zones measured from the true best of 54.5. Rings show true means and dots show sample means. C leads at 53.72 and the cut line sits w = 1.97 behind it at 51.76. Control and A are behind the line and ruled out. B, C and D are kept.
@@ -89,7 +91,7 @@ One simulated test with 3797 users per arm. This test was chosen because it show
 
 `D` is the true best, but `C` has the highest sample mean. That is acceptable, because `C`'s true mean is in the good-enough zone. Both clearly worse arms are behind the cut line and are ruled out. `B` is in the gray zone, and here noise carries its sample mean past the line, so it stays in.
 
-More users shorten the ruler. The next figure repeats this test at three sample sizes, with its random errors scaled to each $n$ and $\hat{\sigma}$ held fixed, so $n$ is the only thing that changes. The bars under each panel compare $w$ with $\delta^*$.
+More users make $w$ smaller. The next figure repeats this test at three sample sizes, with its random errors scaled to each $n$ and $\hat{\sigma}$ held fixed, so $n$ is the only thing that changes. The bars under each panel compare $w$ with $\delta^*$.
 
 ```{figure} figures/sample_size_more_users.svg
 :alt: Three panels of the same test at 1000, 3797 and 15,000 users per arm. As n grows, sample means move toward true means and w falls from 3.83 to 1.97 to 0.99, compared with a fixed delta-star of 2. At 1000, A is clearly worse but stays in. At 3797, Control and A are out. At 15,000, gray-zone arm B is out too.
@@ -107,7 +109,7 @@ The next figure shows 16 simulated tests at the planned sample size. They are so
 Sixteen simulated tests with 3797 users per arm. Each gray bar ends at that test's cut line.
 ```
 
-Both conclusions hold when $w < \delta^*$ and an event called the *correctness event* occurs. [Derivations](#derivations) defines this event and gives the proof. The event has probability exactly $1 - \alpha$ and implies that every interval is correct. Hsu calls the probability that the intervals are correct and $w < \delta^*$ the probability of *correct and useful* inference. `mcb` computes it using the correctness event, and the sample-size functions find the smallest $n$ at which it reaches `target`. Intervals can also be correct without the event, so the computed probability is a lower bound and the plan is conservative.
+Both conclusions hold when $w < \delta^*$ and an event called the *correctness event* occurs. [Derivations](#derivations) defines this event and gives the proof. The event has probability exactly $1 - \alpha$, and when it occurs every interval contains its true value. Hsu calls the probability that every interval contains its true value and $w < \delta^*$ the probability of *correct and useful* inference. `mcb` computes the probability that the correctness event occurs and $w < \delta^*$, and the sample-size functions find the smallest $n$ at which it reaches `target`. The intervals can also contain their true values when the event does not occur, so the computed probability is a lower bound and the plan is conservative.
 
 Because the correctness event has probability $1 - \alpha$, the computed probability is always below $1 - \alpha$ and approaches it as $n$ grows. `target` must therefore be below $1 - \alpha$; otherwise the functions raise `ValueError`. With $\alpha = 0.05$, Hsu's example uses a target of 0.90.
 
@@ -166,7 +168,7 @@ It is therefore better to use a planning $\sigma$ that is unlikely to be too low
 ## Choosing the inputs
 
 - `k`: the number of arms, including the control.
-- `delta_star`: the largest shortfall from the best that is acceptable in the arm that ships. It is set by what difference matters for the product. With probability at least `target`, arms more than $2\delta^*$ below the best are ruled out.
+- `delta_star`: the largest shortfall from the best that is acceptable in the arm that ships, in the units of the metric.
 - `sigma`: a planning value for the standard deviation of the per-user metric, in the same units as `delta_star`. Historical data, an A/A test or a pre-period can supply it. For a conversion rate near $p$, $\sigma \approx \sqrt{p(1-p)}$. When in doubt, use a larger value. Only the ratio $\delta^*/\sigma$ enters the calculation.
 - `alpha`: the familywise error rate that will be used in the analysis.
 - `target`: the required probability of correct and useful inference. It must be below $1 - \alpha$.
@@ -181,9 +183,9 @@ Each row changes one input from the running example ($k = 5$, $\delta^* = 2$, $\
 | --- | ---: | ---: |
 | None (running example) | 3797 | 18,985 |
 | $\delta^* = 1$ | 15,061 | 75,305 |
-| $\delta^* = 4$ | 966 | 4,830 |
+| $\delta^* = 4$ | 966 | 4830 |
 | $\sigma = 50$ | 5913 | 29,565 |
-| $k = 2$ | 2241 | 4,482 |
+| $k = 2$ | 2241 | 4482 |
 | $k = 10$ | 4724 | 47,240 |
 | $k = 20$ | 5576 | 111,520 |
 | $\alpha = 0.10$, target 0.85 | 2757 | 13,785 |
@@ -193,34 +195,13 @@ $n$ is roughly proportional to $(\sigma/\delta^*)^2$, so halving $\delta^*$ mult
 
 ### Planning for Edwards-Hsu MCB
 
-For an analysis with `unconstrained_mcb_edwards_hsu`, use `unconstrained_mcb_edwards_hsu_sample_size`, and `unconstrained_mcb_edwards_hsu_correct_useful_probability` for the probability. The same two conclusions hold, with the Edwards-Hsu screening set in place of $G$. Edwards-Hsu intervals use a two-sided critical value, which Hsu writes $|d|$. It is a separate constant, not the absolute value of $d$, and it is larger, so more users are needed: 4842 per arm in the running example, compared with 3797. In exchange, the analysis gives two-sided bounds on how far each arm is below the best (see [Edwards-Hsu Unconstrained MCB](edwards_hsu.md)).
+For an analysis with `unconstrained_mcb_edwards_hsu`, use `unconstrained_mcb_edwards_hsu_sample_size`, and `unconstrained_mcb_edwards_hsu_correct_useful_probability` for the probability. The same two conclusions hold, with the Edwards-Hsu screening set in place of $G$. Edwards-Hsu intervals use a two-sided critical value, which Hsu writes $|d|$. It is a separate constant, not the absolute value of $d$, and it is larger, so more users are needed: 4842 per arm in the running example, compared with 3797. In exchange, the analysis gives two-sided bounds on how far each arm is below the best (see [Edwards-Hsu MCB](edwards_hsu.md)).
 
 Plan with the procedure and $\alpha$ that the analysis will use, since the computed sample size applies only to that analysis.
 
 ## Checking the plan by simulation
 
-The 0.90 is a probability over repeated tests, so it can be checked by simulation. Two checks are useful.
-
-The first reproduces the 0.90 itself. The correctness event depends only on the estimation errors $e_i = \hat{\mu}_i - \mu_i$ and on $\hat{\sigma}$, not on the true means. With arm 0 as the true best, it requires $e_i - e_0 < w$ for every other arm $i$. The simulation can therefore draw the errors and $\hat{\sigma}$ directly:
-
-```python
-import numpy as np
-from mcb import constrained_critical_value
-
-rng = np.random.default_rng(1)
-k, n, sigma, delta_star = 5, 3797, 40.0, 2.0
-nu = k * (n - 1)
-d = constrained_critical_value((1 / np.sqrt(2),) * (k - 1), nu=nu, alpha=0.05)  # balanced design
-
-reps = 100_000
-errors = rng.normal(0, sigma / np.sqrt(n), size=(reps, k))  # arm 0 is the true best
-sigma_hat = sigma * np.sqrt(rng.chisquare(nu, reps) / nu)
-w = d * sigma_hat * np.sqrt(2 / n)
-correct = np.all(errors[:, 1:] - errors[:, [0]] < w[:, None], axis=1)
-print(np.mean(correct & (w < delta_star)))  # 0.90155
-```
-
-The second fixes a set of true means, simulates the whole test, analyzes each simulated test with `constrained_mcb`, and counts how often both conclusions are drawn and correct. Expect a number above 0.90: the 0.90 is a lower bound that applies to every configuration of true means, and the conclusions can also hold when the correctness event fails.
+The 0.90 is a probability over repeated tests, so it can be checked by simulation. The code below fixes a set of true means, simulates the whole test 1000 times, analyzes each simulated test with `constrained_mcb`, and counts how often both conclusions are drawn and correct. Expect a number above 0.90: the 0.90 is a lower bound that applies to every configuration of true means, and the conclusions can also hold when the correctness event does not occur.
 
 ```python
 import numpy as np
@@ -243,7 +224,7 @@ for _ in range(reps):
 print(successes / reps)  # 0.997
 ```
 
-In this configuration, `Control` and `A` are more than 4 minutes below the best, `C` and `D` are within 2 minutes of it, and `B` is in the gray zone, so the check places no requirement on `B`. Both conclusions held in 997 of the 1000 simulated tests. Other configurations can be checked by changing `true_means`.
+These are the true means used in the figures. `B` is in the gray zone, so the check places no requirement on it. Both conclusions held in 997 of the 1000 simulated tests. Other configurations can be checked by changing `true_means`.
 
 ## Derivations
 
@@ -255,13 +236,13 @@ $$
 \text{luck}_i = (\mu_b - \mu_i) - (\hat{\mu}_b - \hat{\mu}_i).
 $$
 
-Luck is positive when the test shows the arm closer to arm $b$ than it really is. A test is *correct* if every arm's luck is below $w$:
+Luck is positive when the test shows the arm closer to arm $b$ than it really is. Rearranged, $\text{luck}_i = (\hat{\mu}_i - \mu_i) - (\hat{\mu}_b - \mu_b)$: arm $i$'s estimation error minus arm $b$'s. A test is *correct* if every arm's luck is below $w$:
 
 $$
 \text{luck}_i < w \quad \text{for every arm } i \neq b.
 $$
 
-This condition is the *correctness event* from the proof of Hsu's Theorem 4.1.1. It has probability exactly $1 - \alpha$: if the same experiment were repeated many times with new users, a fraction $1 - \alpha$ of the runs would be correct tests. When it occurs, every interval covers its target.
+This condition is the *correctness event* from the proof of Hsu's Theorem 4.1.1. It has probability exactly $1 - \alpha$: if the same experiment were repeated many times with new users, a fraction $1 - \alpha$ of the runs would be correct tests. When it occurs, every interval contains its true value.
 
 Both conclusions hold in a correct test with $w < \delta^*$. Rearranging the definition of luck gives an equation that both proofs use:
 
@@ -275,7 +256,7 @@ $$
 \text{true gap}_i \le \text{luck}_i < w < \delta^*.
 $$
 
-If arm $i$ is the winner, the lower bound of its interval is
+The winner's interval reports this. If arm $i$ is the winner, the lower bound of its interval is
 
 $$
 \min\left(0,\ \hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j - w\right).
@@ -283,15 +264,13 @@ $$
 
 The winner has the highest sample mean, so $\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j$ is 0 or more, and the lower bound is at least $-w$. Because $w < \delta^*$, the lower bound is above $-\delta^*$, which shows that the winner is less than $\delta^*$ below the true best arm.
 
-**Every arm more than $2\delta^*$ below the best is ruled out.** Let arm $i$ be an arm whose true gap is more than $2\delta^*$. Because $w < \delta^*$, its true gap is more than $2w$. Its luck is below $w$, so the equation above gives
+**Every arm more than $2\delta^*$ below the best is ruled out.** Let arm $i$ be an arm whose true gap is more than $2\delta^*$. Because $w < \delta^*$, its true gap is more than $2w$. Its luck is below $w$, so more than $w$ of the gap remains in the test:
 
 $$
 \text{gap in the test}_i = \text{true gap}_i - \text{luck}_i > 2w - w = w.
 $$
 
-So arm $i$'s sample mean is more than $w$ below arm $b$'s sample mean. Arm $b$ is one of the other arms, so the highest sample mean among the other arms is at least arm $b$'s, and $\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j$ is less than $-w$. Arm $i$'s upper bound is $(\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j + w)^+$, where $x^+ = \max(x, 0)$. The expression in parentheses is negative, so the upper bound is 0 and the arm is ruled out.
-
-**Why the boundary is $2\delta^*$.** Two separate distances each equal $w$. An arm is ruled out when its sample mean is at least $w$ below the highest sample mean among the other arms. In a correct test, the gap between an arm's sample mean and arm $b$'s sample mean can also be almost $w$ smaller than the gap between their true means. To be certain an arm is ruled out, its true gap must be large enough that more than $w$ remains after luck removes almost $w$, which takes more than $2w$. An arm with a smaller true gap can stay in if its luck is large enough. Because $w < \delta^*$, a true gap above $2\delta^*$ is always above $2w$.
+So arm $i$'s sample mean is more than $w$ below arm $b$'s sample mean. Arm $b$ is one of the other arms, so the highest sample mean among the other arms is at least arm $b$'s, and $\hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j$ is less than $-w$. Arm $i$'s upper bound is $\max(0,\ \hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j + w)$. The second argument is negative, so the upper bound is 0 and the arm is ruled out.
 
 The next two figures show these quantities in simulated tests. The first uses the test from [What the sample size controls](#what-the-sample-size-controls). In both, arm $b$ is `D`.
 
@@ -311,13 +290,13 @@ Each arm's luck in 200 simulated tests with 3797 users per arm. The dashed lines
 
 ### How the probability is computed
 
-Let $S = \hat{\sigma}/\sigma$. Then $\nu S^2$ has a chi-square distribution with $\nu = k(n-1)$ degrees of freedom, and $\gamma_\nu$ denotes the density of $S$. Let
+Let $\gamma_\nu$ be the density of $\hat{\sigma}/\sigma$; $\nu\hat{\sigma}^2/\sigma^2$ has a chi-square distribution with $\nu = k(n-1)$ degrees of freedom. Let
 
 $$
 u = \sqrt{n/2}\,\frac{\delta^*/\sigma}{d}.
 $$
 
-The condition $w < \delta^*$ is equivalent to $S < u$. In a balanced design every $\lambda_{ij}$ equals $1/\sqrt{2}$, so every arm has the same critical value $d$ (see [MCB Critical Values](mcb_critical_values.md)).
+The condition $w < \delta^*$ is equivalent to $\hat{\sigma}/\sigma < u$.
 
 `constrained_mcb_correct_useful_probability` computes Hsu's Eq. (C.3):
 
@@ -327,8 +306,8 @@ $$
 
 Working from the inside out:
 
-- $z$ is the standardized error in the true best arm's sample mean, $\sqrt{n}(\hat{\mu}_b - \mu_b)/\sigma$. Given $z$ and $S = s$, the correctness event requires each of the other $k - 1$ standardized errors to be below $z + \sqrt{2}\,d\,s$. The errors are independent, so this has probability $\Phi(z + \sqrt{2}\,d\,s)^{k-1}$.
-- Averaging over $z$ gives the probability of the correctness event when $S = s$.
+- $z$ is the standardized error in the true best arm's sample mean, $\sqrt{n}(\hat{\mu}_b - \mu_b)/\sigma$. Given $z$ and $\hat{\sigma}/\sigma = s$, the correctness event requires each of the other $k - 1$ standardized errors to be below $z + \sqrt{2}\,d\,s$. The errors are independent, so this has probability $\Phi(z + \sqrt{2}\,d\,s)^{k-1}$.
+- Averaging over $z$ gives the probability of the correctness event when $\hat{\sigma}/\sigma = s$.
 - Averaging over all $s > 0$ would give exactly $1 - \alpha$, because that is how $d$ is defined. Stopping the outer integral at $u$ keeps only the values of $\hat{\sigma}$ for which $w < \delta^*$.
 
 `unconstrained_mcb_edwards_hsu_correct_useful_probability` computes Eq. (C.5). It is the same integral with $|d|$ in place of $d$ (including in $u$) and the two-sided condition that each standardized error is within $\sqrt{2}\,|d|\,s$ of $z$:
@@ -345,4 +324,4 @@ The `*_sample_size` functions return the smallest $n \ge 2$ at which the corresp
 
 - The computation covers balanced designs only, as Appendix C does: one common $n$ for every arm. The analysis functions (`constrained_mcb`, `unconstrained_mcb_edwards_hsu`) accept unequal sample sizes.
 - The upper limit of $1 - \alpha$ holds up to the critical-value solver's tolerance of about $2 \times 10^{-5}$.
-- The critical values switch to their infinite-degrees-of-freedom form at $\nu = 10^6$ (see [MCB Critical Values](mcb_critical_values.md)). For $k \ge 3$ the probability jumps by about $10^{-3}$ across the switch, mainly because the critical value just below the switch differs from its infinite-df value by slightly more than the true finite-df correction, within the solver's tolerance. The probability still increases with $n$, and a sample size near the switch can be off by a few units out of $10^5$ to $10^6$.
+- The critical values switch to their infinite-degrees-of-freedom form at $\nu = 10^6$ (see [MCB critical values](mcb_critical_values.md)). For $k \ge 3$ the probability jumps by about $10^{-3}$ across the switch, mainly because the critical value just below the switch differs from its infinite-df value by slightly more than the true finite-df correction, within the solver's tolerance. The probability still increases with $n$, and a sample size near the switch can be off by a few units out of $10^5$ to $10^6$.

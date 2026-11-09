@@ -1,42 +1,34 @@
-# Assumptions and Scope
+# Assumptions and scope
 
-The simultaneous coverage statements in `mcb` are finite-sample results for Hsu's one-way normal model. The statistical assumptions matter.
+## Model assumptions
 
-## Required Model Conditions
+The coverage guarantee, that all intervals contain their true values simultaneously with probability at least $1-\alpha$ (Hsu's Theorems 4.1.2 and 4.2.6), is exact under the [one-way normal model](model_notation.md):
 
-The coverage guarantee, joint coverage of at least $1-\alpha$ (Hsu's Theorems 4.1.2 and 4.2.6), assumes:
+- the observations are independent, within and across arms;
+- every arm has the same variance $\sigma^2$;
+- the errors are normally distributed.
 
-- independent observations within and across arms;
-- a common variance $\sigma^2$ across arms;
-- normally distributed errors;
-- a correctly computed pooled MSE with $\nu = \sum_i(n_i-1)$ error degrees of freedom;
-- the larger-is-better direction of comparison.
+The guarantee holds at every sample size. It is not a large-sample approximation.
 
-If your metric is smaller-is-better, transform it before analysis, for example by analyzing `-x`.
+## Use with A/B/n tests
 
-## Practical A/B/n Use
+In an A/B/n test the model usually holds only approximately, and the coverage is then approximate too.
 
-The package can be useful for A/B/n workflows with large samples, but exact finite-sample coverage is not guaranteed for heavily skewed, zero-inflated, heteroscedastic, or dependent observations. In those cases, the normal one-way model is an approximation.
+- Normality. Per-user metrics such as revenue are often skewed or zero-inflated. With large samples the arm means are approximately normal, which is enough when the other two assumptions hold.
+- Common variance. Large samples do not make up for unequal variances. Compare the per-arm sample variances before relying on the pooled MSE.
+- Independence. Large samples do not make up for dependent observations either. Analyze the unit that was randomized: if users were randomized, use one value per user, not one per session.
 
-For revenue/session and similar metrics, treat the output as most defensible when arm means are approximately normal and the common-variance approximation is credible.
+## Ties
 
-## Ties and the Meaning of "Best"
+Hsu's proofs hold whether or not two arms can have exactly equal means. What changes is the reading of a constrained MCB bound of 0 (Hsu 1996, Sections 4.1 and 4.1.7):
 
-Hsu's derivations allow ties to be broken arbitrarily for proof purposes. Interpretation depends on your scientific stance:
+- If exact ties are considered impossible, a lower bound of 0 means the arm is the best, and an upper bound of 0 means it is not the best.
+- If ties are possible, a lower bound of 0 means the arm is one of the best, and an upper bound of 0 means it is at most tied for the best.
 
-- If ties are treated as practically impossible, an arm with constrained lower bound 0 can be interpreted as selected as best.
-- If ties are possible, an arm with constrained lower bound 0 can be interpreted as one of the best arms (Hsu, Section 4.1).
+## Not implemented
 
-Either way, a candidate-best set is a confidence-set object, not a probability ranking.
-
-## What Is Not Implemented
-
-`mcb` currently does not implement:
-
-- smaller-is-better formulas directly;
-- Tukey or Tukey-Kramer all-pairwise procedures;
-- comparison-with-control procedures as standalone APIs;
-- nonparametric MCB methods;
-- general linear model MCB extensions.
-
-The implemented API is intentionally focused on Hsu's unbalanced one-way constrained MCB and the Edwards-Hsu direct unconstrained MCB method.
+- Smaller-is-better analyses. Multiply the response by $-1$ instead.
+- Unconstrained MCB intervals deduced from Tukey-Kramer all-pairwise comparisons (Hsu 1996, Section 4.2.4.1).
+- All-pairwise (Tukey, Tukey-Kramer) and comparison-with-a-control (Dunnett) procedures as analyses in their own right.
+- Nonparametric MCB, and MCB in the general linear model.
+- Sample-size computation for unbalanced designs.

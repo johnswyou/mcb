@@ -1,37 +1,31 @@
 # Quickstart
 
-## Install from a local clone
+## Install
 
-Install the core package in editable mode:
+From a local clone:
 
 ```bash
 python3 -m pip install -e .
 ```
 
-Install the optional plotting helpers as well when you want figures:
+Add the `plot` extra for the plotting helper:
 
 ```bash
 python3 -m pip install -e '.[plot]'
 ```
 
-Install the documentation and test extras when you want to build the Read the Docs site or run the regression suite:
+## Analyze summary statistics
 
-```bash
-python3 -m pip install -e '.[docs,plot,test]'
-```
+`mcb` needs each arm's sample mean and sample size, and the pooled within-arm variance (MSE). Larger responses are treated as better.
 
-## Start from summary statistics
-
-If you already know the per-arm means, sample sizes, and pooled within-arm variance estimate, start with `summarize_from_means_ns_and_mse`.
-
-This example uses Hsu's SAT mathematics data from Chapter 4. The table gives per-group sample standard deviations, so the pooled MSE is computed first.
+This example uses the SAT mathematics scores from Hsu (1996, Section 4.1.5): three groups of students with sample sizes 103, 31 and 122. The source reports a standard deviation per group, so the pooled MSE is computed from those first.
 
 ```python
 from mcb import (
     constrained_mcb,
     pooled_mse_from_group_stats,
+    print_result,
     summarize_from_means_ns_and_mse,
-    unconstrained_mcb_edwards_hsu,
 )
 
 mse = pooled_mse_from_group_stats(
@@ -46,39 +40,49 @@ summary = summarize_from_means_ns_and_mse(
     labels=["Computer science", "Engineering", "Other"],
 )
 
-constrained = constrained_mcb(summary, alpha=0.10)
-unconstrained = unconstrained_mcb_edwards_hsu(summary, alpha=0.10)
-
-print(constrained.candidate_best_set)
-print(constrained.as_dict())
-print(unconstrained.as_dict())
+result = constrained_mcb(summary, alpha=0.10)
+print_result(result, digits=2)
 ```
 
-Use `candidate_best_set` to see which variants remain compatible with being best under the selected procedure. The per-arm estimates and intervals are available on the dataclass fields or through `as_dict()`.
+```text
+Hsu constrained MCB (unbalanced one-way)
+Parameter: mu_i - max_{j != i} mu_j
+Familywise alpha: 0.1
+Candidate-best set: ('Computer science', 'Engineering')
+Critical values:
+  Computer science: 1.61
+  Engineering: 1.50
+  Other: 1.61
+Intervals:
+  Computer science   estimate=-10.00  CI=[-35.43, 17.14]
+  Engineering        estimate=10.00  CI=[-17.14, 35.43]
+  Other              estimate=-54.00  CI=[-78.97, 0.00]
+```
 
-## Start from raw samples
+Each interval is for an arm's true mean minus the largest of the other arms' true means. `Other` has an upper bound of 0, so it is ruled out as the best. The other two arms could each be the best: Engineering is at most 17.14 points below the better of the other two and at most 35.43 points above it. All three intervals contain their true values at once with probability at least 0.90.
 
-If you have raw observations instead, let `mcb` compute the pooled summary for you:
+The same values are fields of the returned `MCBResult` (`labels`, `estimates`, `lower`, `upper`, `critical_values`, `candidate_best_set`), and `result.as_dict()` returns the intervals as a dictionary keyed by label.
+
+## Analyze raw observations
+
+Given the observations of each arm, `summarize_from_samples` computes the means, sample sizes and pooled MSE:
 
 ```python
 from mcb import constrained_mcb, summarize_from_samples
 
 summary = summarize_from_samples(
     {
-        "Computer science": [612.0, 625.0, 620.0, 619.0],
-        "Engineering": [635.0, 621.0, 628.0, 632.0],
-        "Other": [571.0, 580.0, 576.0, 573.0],
+        "A": [612.0, 625.0, 620.0, 619.0],
+        "B": [635.0, 621.0, 628.0, 632.0],
+        "C": [571.0, 580.0, 576.0, 573.0],
     }
 )
 
 result = constrained_mcb(summary, alpha=0.10)
 ```
 
-## Choose the procedure
+## Next steps
 
-- Use `constrained_mcb` when you want intervals for $\theta_i = \mu_i - \max_{j \neq i} \mu_j$ and a candidate-best set.
-- Use `unconstrained_mcb_edwards_hsu` when you want intervals for $\eta_i = \mu_i - \max_j \mu_j$, the distance below the global best.
-
-Both procedures return the same `MCBResult` dataclass, so you can inspect or display them the same way.
-
-For the model notation, assumptions, and formulas behind these procedures, continue with [MCB guide](mcb.md).
+- [Overview](mcb.md) explains what the intervals mean and when to use `unconstrained_mcb_edwards_hsu` instead of `constrained_mcb`.
+- [SAT worked example](sat_example.md) traces the numbers above back to the formulas.
+- [Sample size](sample_size.md) chooses the number of observations per arm before an experiment runs.

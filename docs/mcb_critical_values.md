@@ -1,43 +1,32 @@
-# MCB Critical Values
+# MCB critical values
 
-This page describes the two critical values exposed by the package:
+`constrained_critical_value` computes $d^i$, the critical value of [constrained MCB](constrained_mcb.md). `unconstrained_edwards_hsu_critical_value` computes $|d|^i$, the critical value of [Edwards-Hsu MCB](edwards_hsu.md). The analysis functions call them once per arm. They can also be called directly:
 
-- `constrained_critical_value` for Hsu's constrained MCB critical value $d^i$
-- `unconstrained_edwards_hsu_critical_value` for the direct Edwards-Hsu critical value $|d|^i$
+```python
+from math import sqrt
 
-Both are computed arm-by-arm in the unbalanced one-way model, so the value for a focal arm depends on that arm's full pattern of pairwise sample-size ratios. The formulas follow Hsu's Appendix D.2 quadrature strategy for the probabilities in Section 4.1.4 and Section 4.2.4.2.
+from mcb import constrained_critical_value, unconstrained_edwards_hsu_critical_value
 
-## Common setup
+# Balanced design, k = 3 arms, n = 11 per arm: nu = 3 * 10 = 30, and both lambdas are 1 / sqrt(2).
+lambdas = (1 / sqrt(2),) * 2
+constrained_critical_value(lambdas, nu=30, alpha=0.05)                # 1.989
+unconstrained_edwards_hsu_critical_value(lambdas, nu=30, alpha=0.05)  # 2.321
+```
 
-Under Hsu's model,
+These are the values in Hsu's Tables E.2 and E.3. The argument `lambdas` holds $\lambda_{ij}$ for every $j \neq i$, as defined below.
 
-$$
-Y_{ia} = \mu_i + \varepsilon_{ia},
-\qquad
-\varepsilon_{ia} \stackrel{iid}{\sim} N(0, \sigma^2),
-$$
+## Setup
 
-with pooled variance estimator $\hat{\sigma}^2 = MSE$ and
-
-$$
-\nu = \sum_{i=1}^k (n_i - 1).
-$$
-
-For a fixed focal arm $i$, define
+Fix an arm $i$ as the control. Under the [one-way normal model](model_notation.md), the standardized estimation errors
 
 $$
-Z_i = \frac{\sqrt{n_i}(\hat{\mu}_i - \mu_i)}{\sigma},
-\qquad
-Z_j = \frac{\sqrt{n_j}(\hat{\mu}_j - \mu_j)}{\sigma},
-\qquad
-S = \frac{\hat{\sigma}}{\sigma}.
+Z_m = \frac{\sqrt{n_m}\,(\hat{\mu}_m - \mu_m)}{\sigma},
+\qquad m = 1,\ldots,k,
 $$
 
-Then $Z_i$ and the $Z_j$ values are independent standard normals, and $\nu S^2 \sim \chi^2_\nu$.
+are independent standard normal variables. They are independent of $\hat{\sigma}/\sigma$, whose density is written $\gamma_\nu$; $\nu\hat{\sigma}^2/\sigma^2$ has a chi-square distribution with $\nu$ degrees of freedom.
 
-Let $\gamma_\nu(s)$ denote the density of $S = \hat{\sigma}/\sigma$ on $(0,\infty)$.
-
-The key sample-size-dependent quantity is
+The sample sizes enter through
 
 $$
 \lambda_{ij} =
@@ -47,10 +36,10 @@ $$
 \qquad j \neq i.
 $$
 
-The standardized comparison between the focal arm and arm $j$ is
+The standardized difference between the errors of arm $i$ and arm $j$ is
 
 $$
-U_{ij}
+T_{ij}
 =
 \frac{(\hat{\mu}_i - \mu_i) - (\hat{\mu}_j - \mu_j)}
 {\sigma \sqrt{n_i^{-1} + n_j^{-1}}}
@@ -58,24 +47,11 @@ U_{ij}
 \lambda_{ij} Z_i - \sqrt{1 - \lambda_{ij}^2}\, Z_j.
 $$
 
-Conditioning on $Z_i = z$ turns the different comparisons into conditionally independent normal events, which is why Hsu's integrals factor over $j \neq i$.
+Given $Z_i = z$ and $\hat{\sigma}/\sigma = s$, the $T_{ij}$ for different $j$ are independent. The probability of a joint event over all $j \neq i$ is therefore a product of normal probabilities, averaged over $z$ and $s$.
 
 ## Constrained critical value $d^i$
 
-For constrained MCB, $d^i$ is the one-sided Dunnett-with-control critical value satisfying
-
-$$
-P\left\{
-\hat{\mu}_i - \mu_i
->
-\hat{\mu}_j - \mu_j - d^i \hat{\sigma} \sqrt{n_i^{-1} + n_j^{-1}}
-\text{ for all } j \neq i
-\right\}
-=
-1 - \alpha.
-$$
-
-After standardization, the defining probability is
+$d^i$ is the value of $d$ at which the event $T_{ij} > -d\,\hat{\sigma}/\sigma$ for all $j \neq i$ has probability $1 - \alpha$. That probability is
 
 $$
 p_i^{\mathrm{con}}(d)
@@ -86,41 +62,20 @@ p_i^{\mathrm{con}}(d)
 \Phi\left(
 \frac{\lambda_{ij} z + d s}{\sqrt{1 - \lambda_{ij}^2}}
 \right)
-\, d\Phi(z)\, \gamma_\nu(s)\, ds,
+\, d\Phi(z)\, \gamma_\nu(s)\, ds
 $$
 
-and $d^i$ is the unique solution to
-
-$$
-p_i^{\mathrm{con}}(d^i) = 1 - \alpha.
-$$
-
-The package brackets the root with the same one-sided Dunnett bounds described in Appendix D.2:
+(Hsu's equation (4.11)), where $\Phi$ is the standard normal distribution function. The solution of $p_i^{\mathrm{con}}(d^i) = 1 - \alpha$ lies in
 
 $$
 t_{\alpha,\nu} \leq d^i \leq t_{\alpha/(k-1),\nu},
 $$
 
-then solves the scalar equation with the Illinois variant of regula falsi.
+where $t_{\beta,\nu}$ is the upper $\beta$ quantile of the $t$ distribution with $\nu$ degrees of freedom. For $k = 2$ the two ends coincide and $d^i = t_{\alpha,\nu}$.
 
-## Unconstrained Edwards-Hsu critical value $|d|^i$
+## Edwards-Hsu critical value $|d|^i$
 
-For the direct unbalanced Edwards-Hsu method, the critical value is two-sided:
-
-$$
-P\left\{
-\left|
-\hat{\mu}_i - \mu_i - (\hat{\mu}_j - \mu_j)
-\right|
-<
-|d|^i \hat{\sigma} \sqrt{n_i^{-1} + n_j^{-1}}
-\text{ for all } j \neq i
-\right\}
-=
-1 - \alpha.
-$$
-
-The corresponding integral is
+$|d|^i$ is the value of $c$ at which the two-sided event $|T_{ij}| < c\,\hat{\sigma}/\sigma$ for all $j \neq i$ has probability $1 - \alpha$. That probability is
 
 $$
 p_i^{\mathrm{EH}}(c)
@@ -137,54 +92,29 @@ p_i^{\mathrm{EH}}(c)
 \frac{\lambda_{ij} z - c s}{\sqrt{1 - \lambda_{ij}^2}}
 \right)
 \right]
-\, d\Phi(z)\, \gamma_\nu(s)\, ds,
+\, d\Phi(z)\, \gamma_\nu(s)\, ds.
 $$
 
-and $|d|^i$ is the unique solution to
+The solution of $p_i^{\mathrm{EH}}(|d|^i) = 1 - \alpha$ lies in
 
 $$
-p_i^{\mathrm{EH}}(|d|^i) = 1 - \alpha.
+t_{\alpha/2,\nu} \leq |d|^i \leq t_{\alpha/[2(k-1)],\nu}.
 $$
 
-The package brackets this root with the same two-sided Dunnett bounds described in Appendix D.2:
+For $k = 2$, $|d|^i = t_{\alpha/2,\nu}$.
 
-$$
-t_{\alpha/2,\nu} \leq |d|^i \leq t_{\alpha/[2(k-1)],\nu},
-$$
+## Numerical method
 
-again using the Illinois method for the final solve.
+The computation follows Hsu's Appendix D.2:
 
-## Numerical Implementation
+- The inner integral over $z$ uses 48-point Gauss-Hermite quadrature.
+- The outer integral over $s$ uses 48-point Gauss-Legendre quadrature on the central $1 - 10^{-6}$ probability interval of $\hat{\sigma}/\sigma$.
+- The root is found with the Illinois variant of regula falsi, starting from the interval of $t$ quantiles given above. A candidate is accepted when its probability is within $2\times 10^{-5}$ of $1-\alpha$ or when the half-width of the bracketing interval is at most $5\times 10^{-4}$.
 
-The numerical integration strategy mirrors Hsu's Appendix D.2:
+When $\nu = \infty$, $\hat{\sigma}$ equals $\sigma$ and only the inner integral remains. The package uses this form when `nu` is infinite or at least $10^6$, where it agrees with the finite-$\nu$ form to within the solver's tolerance. Hsu's programs made the same switch at $\nu > 240$. The package does not, so some of its values differ slightly from the book's (see the [SAT example](sat_example.md#differences-from-the-printed-textbook-values)).
 
-- For finite $\nu < 10^6$, the inner normal integral is evaluated with 48-point Gauss-Hermite quadrature.
-- The outer integral over $S = \hat{\sigma} / \sigma$ is evaluated with 48-point Gauss-Legendre quadrature.
-- The outer domain $(0, \infty)$ is truncated to the central $1 - 10^{-6}$ probability interval of $S$.
-- When $\nu = \infty$ is supplied explicitly, or when finite $\nu \geq 10^6$, the code
-  uses the infinite-degrees-of-freedom approximation and treats $S \equiv 1$ because
-  the finite-$\nu$ correction is negligible relative to the solver tolerance; finite
-  $\nu$ below this high-df stability switch are not collapsed to Hsu's historical
-  `dinfnu = 240` code shortcut.
-- The root solver is the Illinois variant of regula falsi.
-- A candidate root is accepted when the probability is within $2\times 10^{-5}$ of $1-\alpha$, or when the bracketing half-width is at most $5\times 10^{-4}$.
+## Balanced designs and the Appendix E tables
 
-## Balanced Tables and Unbalanced Designs
+In a balanced design $\lambda_{ij} = 1/\sqrt{2}$ for every pair, so the critical values depend only on $\alpha$, $k$ and $\nu$ and can be tabulated. Hsu's Appendix E does this, and the package's test suite checks its results against Tables E.2, E.3, E.5 and E.6.
 
-Appendix E tabulates balanced-design values for $d$ and $|d|$. In a balanced design,
-
-$$
-\lambda_{ij} = \frac{1}{\sqrt{2}}
-$$
-
-for every comparison, so the critical value depends only on $\alpha$, $k$, and $\nu$.
-
-In an unbalanced design, there is no single table indexed only by $(\alpha,k,\nu)$. The vector $(\lambda_{ij}: j \neq i)$ changes by focal arm, and so do the critical values.
-
-The package test suite checks the balanced case against Hsu Appendix E Tables E.2, E.3, E.5, and E.6.
-
-## Practical Interpretation
-
-- `constrained_critical_value` is the one-sided ingredient used by `constrained_mcb`.
-- `unconstrained_edwards_hsu_critical_value` is the two-sided ingredient used by `unconstrained_mcb_edwards_hsu`.
-- For $k=2$, the constrained critical value reduces to the upper $\alpha$ quantile of the $t$ distribution, and the Edwards-Hsu critical value reduces to the upper $\alpha/2$ quantile.
+In an unbalanced design the critical values also depend on the sample-size ratios and differ from arm to arm, so they are computed for each design.

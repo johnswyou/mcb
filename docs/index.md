@@ -1,14 +1,12 @@
 # `mcb`
 
-`mcb` implements Hsu's Multiple Comparisons with the Best (MCB) procedures for the unbalanced one-way normal model.
+`mcb` implements Hsu's Multiple Comparisons with the Best (MCB) for the one-way normal model, with equal or unequal sample sizes per arm. From the per-arm data of an experiment it reports which arms could be the best and how far each arm may be from the best, as simultaneous confidence intervals.
 
-The package is organized around two inferential tasks, plus planning the experiment:
+The package does three things:
 
-- `constrained_mcb`: simultaneous intervals for $\mu_i - \max_{j \neq i} \mu_j$ and a candidate-best set.
-- `unconstrained_mcb_edwards_hsu`: Edwards-Hsu simultaneous intervals for $\mu_i - \max_j \mu_j$, the gap from arm $i$ to the global best.
-- `constrained_mcb_sample_size` and `unconstrained_mcb_edwards_hsu_sample_size`: plan the per-arm sample size of a balanced experiment with Hsu's Appendix C computation.
-
-The statistical reference is Hsu, *Multiple Comparisons: Theory and Methods* (1996), Chapter 4, with critical-value computation following Appendix D.2 and regression checks against Appendix E.
+- `constrained_mcb` computes simultaneous intervals for $\mu_i - \max_{j \neq i} \mu_j$, arm $i$'s mean minus the best of the other arms' means, and the set of arms that could be the best.
+- `unconstrained_mcb_edwards_hsu` computes simultaneous intervals for $\mu_i - \max_j \mu_j$, arm $i$'s mean minus the best mean.
+- `constrained_mcb_sample_size` and `unconstrained_mcb_edwards_hsu_sample_size` choose the per-arm sample size of a balanced experiment before it runs.
 
 Source repository: <https://github.com/johnswyou/mcb>
 
@@ -25,26 +23,11 @@ sat_example
 mcb_critical_values
 sample_size
 assumptions
-example_workflow
 api
 ```
 
-## Highlights
+## References
 
-- Accept either raw per-arm samples or summary statistics.
-- Compute Hsu's constrained MCB intervals for ranking plausible winners.
-- Compute unbalanced Edwards-Hsu unconstrained intervals for gaps to the global best.
-- Plan balanced experiments with Hsu's sample-size computation.
-- Plot simultaneous intervals with the optional `mcb.plotting` helper.
-- Build documentation locally with the same Sphinx configuration used by Read the Docs.
-
-## Local documentation build
-
-From a local clone, install the docs and plotting extras and build the HTML output:
-
-```bash
-python3 -m pip install -e '.[docs,plot,test]'
-python3 -m sphinx -W -b html docs docs/_build/html
-```
-
-The generated site will be written to `docs/_build/html`.
+- Hsu, J. C. (1996). *Multiple Comparisons: Theory and Methods*. Chapman & Hall. The procedures are in Chapter 4, the sample-size computation in Appendix C, the critical-value computation in Appendix D.2, and the tables used as regression tests in Appendix E.
+- Hsu, J. C. (1988). Sample size computation for designing multiple comparison experiments. *Computational Statistics and Data Analysis*, 7:79-91.
+- Edwards, D. G. and Hsu, J. C. (1983). Multiple comparisons with the best treatment. *Journal of the American Statistical Association*, 78:965-971.

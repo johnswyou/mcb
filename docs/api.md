@@ -1,6 +1,6 @@
 # API reference
 
-## Public package surface
+## Package
 
 ```{eval-rst}
 .. currentmodule:: mcb
@@ -32,7 +32,7 @@
    :member-order: bysource
 ```
 
-## Plotting helpers
+## Plotting
 
 ```{eval-rst}
 .. currentmodule:: mcb.plotting

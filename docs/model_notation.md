@@ -1,6 +1,8 @@
-# Model and Notation
+# Model and notation
 
-The package uses Hsu's unbalanced one-way normal model. Arm $i$ has observations
+## The one-way normal model
+
+Arm $i$ has $n_i$ observations
 
 $$
 Y_{ia} = \mu_i + \varepsilon_{ia},
@@ -10,72 +12,48 @@ i = 1,\ldots,k,
 a = 1,\ldots,n_i,
 $$
 
-with independent errors
+where the errors $\varepsilon_{ia}$ are independent $N(0,\sigma^2)$ and $\sigma^2$ is unknown. The design is *balanced* if every $n_i$ is the same and *unbalanced* otherwise. The analysis functions handle both.
+
+Larger responses are better throughout the package and these pages. If smaller is better, multiply the response by $-1$ before the analysis.
+
+## Sample summaries
+
+The procedures use the data only through the arm means, the sample sizes and the pooled variance estimate:
 
 $$
-\varepsilon_{ia} \stackrel{iid}{\sim} N(0,\sigma^2).
-$$
-
-The larger-is-better convention is used throughout these docs and in the package. If smaller values are better in your application, multiply the response by `-1` before forming the summary.
-
-## Sample Summaries
-
-The observed arm mean is
-
-$$
-\hat{\mu}_i = \bar{Y}_i = \frac{1}{n_i}\sum_{a=1}^{n_i}Y_{ia}.
-$$
-
-The pooled within-arm variance estimate is
-
-$$
-MSE
-= \hat{\sigma}^2
+\hat{\mu}_i = \bar{Y}_i = \frac{1}{n_i}\sum_{a=1}^{n_i}Y_{ia},
+\qquad
+\hat{\sigma}^2 = MSE
 =
-\frac{
-\sum_{i=1}^k\sum_{a=1}^{n_i}(Y_{ia} - \bar{Y}_i)^2
-}{
-\nu
-},
+\frac{1}{\nu}\sum_{i=1}^k\sum_{a=1}^{n_i}(Y_{ia} - \bar{Y}_i)^2,
 \qquad
 \nu = \sum_{i=1}^k(n_i - 1).
 $$
 
-`mcb` can create this summary three ways:
+$\nu$ is the error degrees of freedom. A `OneWaySummary` holds these quantities. There are two ways to build one:
 
-- `summarize_from_samples`: start from raw observations.
-- `summarize_from_means_ns_and_mse`: start from per-arm means, sample sizes, and pooled MSE.
-- `pooled_mse_from_group_stats`: compute pooled MSE from per-arm sample variances.
+- `summarize_from_samples`, from the raw observations;
+- `summarize_from_means_ns_and_mse`, from the arm means, the sample sizes and the MSE. If only per-arm sample variances are known, `pooled_mse_from_group_stats` computes the MSE from them.
 
-## Target Parameters
-
-There are two related but different MCB targets.
-
-The constrained procedure targets
+## Target parameters
 
 $$
-\theta_i = \mu_i - \max_{j \neq i}\mu_j.
+\theta_i = \mu_i - \max_{j \neq i}\mu_j,
+\qquad
+\eta_i = \mu_i - \max_{1 \leq j \leq k}\mu_j = \min(\theta_i, 0).
 $$
 
-This compares arm $i$ with the best of the other arms. If $\theta_i > 0$, arm $i$ is better than every competitor. If $\theta_i < 0$, arm $i$ is not best. If $\theta_i$ is close to 0, arm $i$ is close to the best competitor.
+Constrained MCB gives intervals for $\theta_i$, arm $i$'s mean minus the best of the other arms' means. Edwards-Hsu MCB gives intervals for $\eta_i$, arm $i$'s mean minus the best mean. [Overview](mcb.md) explains how to read them. The `estimates` field of a result is the target with each $\mu$ replaced by $\hat{\mu}$.
 
-The Edwards-Hsu unconstrained procedure targets
+## Standard errors and $\lambda_{ij}$
 
-$$
-\eta_i = \mu_i - \max_{1 \leq j \leq k}\mu_j.
-$$
-
-This compares arm $i$ with the global best arm, including itself. Therefore $\eta_i \leq 0$ always, and $\eta_i = 0$ exactly for arms tied for the true best.
-
-## Pairwise Standard Errors
-
-The standard error for comparing arms $i$ and $j$ is
+The estimated standard error of $\hat{\mu}_i - \hat{\mu}_j$ is
 
 $$
 \hat{\sigma}\sqrt{n_i^{-1} + n_j^{-1}}.
 $$
 
-For unbalanced critical values, Hsu rewrites the standardized comparison using
+Every bound in both procedures is a difference of two sample means plus or minus a critical value times this standard error. Each arm $i$ has its own critical value, written $d^i$ for constrained MCB and $|d|^i$ for Edwards-Hsu MCB. Apart from $\alpha$, $k$ and $\nu$, it depends on the sample sizes through
 
 $$
 \lambda_{ij}
@@ -84,13 +62,10 @@ $$
 \qquad j \neq i.
 $$
 
-Because the vector $(\lambda_{ij}: j \neq i)$ depends on the focal arm $i$, unbalanced designs generally have different critical values for different arms.
+In a balanced design every $\lambda_{ij}$ equals $1/\sqrt{2}$ and all arms share one critical value. In an unbalanced design the critical values differ from arm to arm. [MCB critical values](mcb_critical_values.md) gives the computation.
 
-## Candidate-Best Sets
+## Candidate-best set
 
-Both implemented procedures return `candidate_best_set`, but the exact construction differs:
+Both procedures return a `candidate_best_set`, the arms that the data do not rule out as the best. It is a confidence set for the best arm: it contains the true best arm with probability at least $1-\alpha$. Constrained MCB calls the set $G$ and Edwards-Hsu MCB calls it $S$. Each is defined on its procedure's page.
 
-- `constrained_mcb` returns $G$, the arms whose constrained upper MCB bound is positive.
-- `unconstrained_mcb_edwards_hsu` returns $S$, the arms that pass the Edwards-Hsu screening inequality.
-
-These sets are confidence-set outputs. Membership means the data do not rule the arm out as best at the requested familywise level. It is not a posterior probability and not a guarantee that the arm is best.
+Membership means the data cannot exclude the arm. It says nothing about how probable it is that the arm is the best.

@@ -1,26 +1,17 @@
 # Constrained MCB
 
-`constrained_mcb` implements Hsu's constrained Multiple Comparisons with the Best procedure for the unbalanced one-way model. The source construction is Hsu (1996), Section 4.1.4, equations (4.10) through (4.16).
-
-Use it when you want to identify arms that are not compatible with being best, while also showing how close the remaining arms may be to their best competitor.
-
-## Target
-
-The target parameter is
+`constrained_mcb` computes simultaneous confidence intervals $[D_i^-, D_i^+]$ for
 
 $$
-\theta_i = \mu_i - \max_{j \neq i}\mu_j.
+\theta_i = \mu_i - \max_{j \neq i}\mu_j,
+\qquad i = 1,\ldots,k,
 $$
 
-The simultaneous intervals are constrained to contain 0. This reflects the role of 0 as the decision boundary:
+arm $i$'s mean minus the best of the other arms' means. The intervals are called *constrained* because every one of them contains 0. The construction is Hsu (1996), Section 4.1.4, equations (4.10) to (4.16). The notation is defined in [Model and notation](model_notation.md).
 
-- $\theta_i > 0$ means arm $i$ is better than every other arm.
-- $\theta_i < 0$ means some other arm is better than arm $i$.
-- $\theta_i$ near 0 means arm $i$ is close to the best competing arm.
+## Critical values
 
-## Arm-Specific Critical Values
-
-For each focal arm $i$, let $d^i$ be the one-sided Dunnett-with-control critical value computed as if arm $i$ were the control. It is chosen so that
+For each arm $i$, $d^i$ is the critical value of Dunnett's one-sided method for comparing every other arm with a control, with arm $i$ as the control. It solves
 
 $$
 P\left\{
@@ -33,11 +24,11 @@ P\left\{
 = 1-\alpha.
 $$
 
-In an unbalanced design, $d^i$ depends on the full sample-size pattern through the values $\lambda_{ij}$, so the critical value can differ by arm.
+In words: with probability $1-\alpha$, no other arm's estimation error exceeds arm $i$'s by $d^i$ standard errors or more. [MCB critical values](mcb_critical_values.md) describes the computation.
 
-## Upper Bounds and Candidate-Best Set
+## Upper bounds and the candidate-best set
 
-The constrained upper bound is
+The upper bound is
 
 $$
 D_i^+
@@ -49,21 +40,18 @@ D_i^+
 + d^i\hat{\sigma}\sqrt{n_i^{-1} + n_j^{-1}}
 \right\}
 \right]^+,
+\qquad x^+ = \max(x,0).
 $$
 
-where $x^+ = \max(x,0)$.
-
-The candidate-best set is
+$D_i^+$ is 0 when some other arm's sample mean exceeds arm $i$'s by at least $d^i$ standard errors. Arm $i$ is then ruled out as the best. The arms that are not ruled out form the candidate-best set
 
 $$
 G = \{i : D_i^+ > 0\}.
 $$
 
-If $D_i^+ = 0$, arm $i$ is inferred not to be the true best at familywise level $\alpha$. If $D_i^+ > 0$, arm $i$ remains compatible with being best.
+## Lower bounds
 
-## Lower Bounds
-
-Once $G$ is known, the lower constrained bound is
+The lower bound is
 
 $$
 D_i^- =
@@ -79,24 +67,32 @@ D_i^- =
 \end{cases}
 $$
 
-The critical value in the lower bound is $d^j$, not $d^i$, because the possible best arm $j$ is treated as the control in that comparison.
+Arm $i$ is compared only with the arms in $G$, because only they could be the best. The critical value is $d^j$, not $d^i$: in each comparison the candidate $j$ is the control.
 
-The result is a set of simultaneous intervals
+$D_i^-$ is never positive. Arm $j$ is in $G$ only if $\hat{\mu}_j - \hat{\mu}_i + d^j\hat{\sigma}\sqrt{n_i^{-1} + n_j^{-1}} > 0$, which makes every term in the minimum negative. Since $D_i^+$ is never negative, every interval contains 0.
+
+The intervals $[D_i^-, D_i^+]$ contain all the $\theta_i$ simultaneously with probability at least $1-\alpha$ (Hsu's Theorem 4.1.2).
+
+## Reading the intervals
+
+Each interval has one of three forms.
+
+- $[D_i^-,\ 0]$ with $D_i^- < 0$. Arm $i$ is not the best. It is at most $-D_i^-$ below the best.
+- $[0,\ D_i^+]$. Arm $i$ is the best, and it leads the runner-up by at most $D_i^+$. This form occurs only when $G = \{i\}$.
+- $[D_i^-,\ D_i^+]$ with $D_i^- < 0 < D_i^+$. Arm $i$ could be the best. It is at most $-D_i^-$ below the best of the other arms and at most $D_i^+$ above it.
+
+A lower bound near 0 shows that an arm is close to the best even when it cannot be shown to be the best. [Assumptions and scope](assumptions.md#ties) covers how ties change the first two readings.
+
+Because every interval contains 0, constrained MCB never states that an arm is at least some amount below the best, or that the best arm leads by at least some amount. [Edwards-Hsu MCB](edwards_hsu.md) can make such statements, with larger critical values.
+
+## Balanced designs
+
+When every arm has $n$ observations, all arms share one critical value $d$ and one margin $w = d\,\hat{\sigma}\sqrt{2/n}$, and the bounds reduce to
 
 $$
-[D_i^-,D_i^+],
-\qquad i=1,\ldots,k,
+D_i^- = \min\left(0,\ \hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j - w\right),
+\qquad
+D_i^+ = \max\left(0,\ \hat{\mu}_i - \max_{j \neq i}\hat{\mu}_j + w\right)
 $$
 
-with joint coverage at least $1-\alpha$ for all $\theta_i$ under the one-way normal model.
-
-## Interpretation
-
-Read the constrained interval against 0:
-
-- If the upper bound is 0, the arm is ruled out as best.
-- If the upper bound is positive (the arm is in $G$), the arm could be best.
-- If the lower bound is close to 0, the arm is close to the best.
-- If $G$ contains exactly one arm, that arm alone remains in the constrained candidate-best set.
-
-Constrained MCB does not provide a positive lower bound on how much the selected best arm exceeds the others. Hsu's point is that by giving up lower bounds on how much the arms identified as not best fall below the true best, constrained MCB achieves sharper inference than unconstrained MCB.
+(Hsu's equation (4.5)). The [sample-size computation](sample_size.md) uses this form.
