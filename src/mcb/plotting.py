@@ -17,7 +17,7 @@ def plot_simultaneous_intervals(
     title: str | None = None,
     figsize: tuple[float, float] = (8.5, 4.8),
 ) -> plt.Axes:
-    """Plot simultaneous confidence intervals horizontally.
+    """Plot simultaneous confidence intervals horizontally, with a marker at each estimate.
 
     Parameters
     ----------
@@ -43,16 +43,16 @@ def plot_simultaneous_intervals(
     labels = list(result.labels)
     lower = np.asarray(result.lower, dtype=float)
     upper = np.asarray(result.upper, dtype=float)
-    centers = (lower + upper) / 2.0
-    xerr = np.vstack([centers - lower, upper - centers])
+    estimates = np.asarray(result.estimates, dtype=float)
+    xerr = np.vstack([estimates - lower, upper - estimates])
     y = np.arange(len(labels))[::-1]
 
-    ax.errorbar(centers, y, xerr=xerr, fmt="o", capsize=4)
+    ax.errorbar(estimates, y, xerr=xerr, fmt="o", capsize=4)
     ax.axvline(0.0, linestyle="--")
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.set_xlabel(result.parameter)
-    ax.set_ylabel("Variant")
+    ax.set_ylabel("Arm")
     if title is None:
         title = f"{result.method} simultaneous {100 * (1 - result.alpha):.1f}% CIs"
     ax.set_title(title)

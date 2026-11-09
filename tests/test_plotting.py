@@ -27,5 +27,8 @@ def test_plot_simultaneous_intervals_returns_axes() -> None:
 
     assert ax.get_title() == "Example plot"
     assert ax.get_xlabel() == "theta"
+    assert ax.get_ylabel() == "Arm"
+    # Markers sit at the estimates, not at the interval midpoints (0.05, -0.4).
+    assert list(ax.containers[0][0].get_xdata()) == [0.0, -0.5]
     assert [tick.get_text() for tick in ax.get_yticklabels()] == ["A", "B"]
     plt.close(ax.figure)

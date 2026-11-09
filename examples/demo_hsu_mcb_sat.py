@@ -1,9 +1,9 @@
 """Demo of Hsu's unbalanced MCB procedures using Hsu's SAT-score example.
 
 This script reproduces the example from Chapter 4 using summary statistics:
-- Variant 1: Computer science
-- Variant 2: Engineering
-- Variant 3: Other
+- Arm 1: Computer science
+- Arm 2: Engineering
+- Arm 3: Other
 """
 from __future__ import annotations
 

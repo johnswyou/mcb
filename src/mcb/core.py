@@ -91,13 +91,13 @@ class OneWaySummary:
     Parameters
     ----------
     labels:
-        Variant names in display order.
+        Arm labels in display order.
     means:
-        Sample mean revenue/session per variant.
+        Sample mean of each arm.
     ns:
-        Sample sizes per variant.
+        Sample size of each arm.
     mse:
-        Pooled within-variant variance estimate.
+        Pooled within-arm variance estimate (MSE).
     df:
         Error degrees of freedom, sum_i (n_i - 1).
     """
@@ -110,7 +110,7 @@ class OneWaySummary:
 
     @property
     def k(self) -> int:
-        """Number of treatment arms in the summary."""
+        """Number of arms in the summary."""
         return len(self.means)
 
     @property
@@ -126,23 +126,23 @@ class MCBResult:
     Attributes
     ----------
     method:
-        Human-readable description of the procedure that produced the result.
+        Name of the procedure that produced the result.
     parameter:
         Target parameter family, for example ``mu_i - max_{j != i} mu_j``.
     alpha:
         Familywise error rate used to construct the simultaneous intervals.
     labels:
-        Variant labels in display order.
+        Arm labels in display order.
     estimates:
-        Point estimates for the target parameter, one per variant.
+        Point estimates for the target parameter, one per arm.
     lower:
         Simultaneous lower bounds for the target parameter.
     upper:
         Simultaneous upper bounds for the target parameter.
     critical_values:
-        Mapping from label to the arm-specific critical value used internally.
+        Mapping from label to that arm's critical value.
     candidate_best_set:
-        Labels that remain compatible with being best under the selected method.
+        Labels of the arms that the data do not rule out as the best.
     notes:
         Additional interpretation details about the result.
     """
@@ -159,7 +159,7 @@ class MCBResult:
     notes: str = ""
 
     def as_dict(self) -> dict[str, dict[str, float | str]]:
-        """Return the interval table keyed by variant label."""
+        """Return the estimates and bounds keyed by arm label."""
         rows: dict[str, dict[str, float | str]] = {}
         for label, est, lo, hi in zip(self.labels, self.estimates, self.lower, self.upper):
             rows[label] = {
@@ -179,7 +179,7 @@ def pooled_mse_from_samples(samples: Mapping[str, Sequence[float]]) -> float:
     Parameters
     ----------
     samples:
-        Dict mapping variant label -> iterable of observations.
+        Mapping from arm label to that arm's observations.
 
     Returns
     -------
@@ -187,13 +187,13 @@ def pooled_mse_from_samples(samples: Mapping[str, Sequence[float]]) -> float:
         Pooled within-group mean squared error.
     """
     if len(samples) < 2:
-        raise ValueError("Need at least two variants to compute pooled MSE.")
+        raise ValueError("Need at least two arms to compute pooled MSE.")
 
     arrays = [np.asarray(group, dtype=float) for group in samples.values()]
     ns = tuple(int(arr.size) for arr in arrays)
 
     if any(n < 2 for n in ns):
-        raise ValueError("Each variant must have at least two observations.")
+        raise ValueError("Each arm must have at least two observations.")
 
     sse = sum(float(((arr - arr.mean()) ** 2).sum()) for arr in arrays)
     df = int(sum(n - 1 for n in ns))
@@ -206,9 +206,9 @@ def pooled_mse_from_group_stats(ns: Sequence[int], variances: Sequence[float]) -
     Parameters
     ----------
     ns:
-        Sample sizes per variant.
+        Sample size of each arm.
     variances:
-        Per-variant sample variances computed with denominator ``n_i - 1``.
+        Sample variance of each arm, computed with denominator ``n_i - 1``.
 
     Returns
     -------
@@ -221,9 +221,9 @@ def pooled_mse_from_group_stats(ns: Sequence[int], variances: Sequence[float]) -
     if len(ns) != len(variances):
         raise ValueError("ns and variances must have the same length.")
     if len(ns) < 2:
-        raise ValueError("Need at least two variants to compute pooled MSE.")
+        raise ValueError("Need at least two arms to compute pooled MSE.")
     if any(n < 2 for n in ns):
-        raise ValueError("Each variant must have at least two observations.")
+        raise ValueError("Each arm must have at least two observations.")
     if any(v < 0 for v in variances):
         raise ValueError("variances must be nonnegative.")
 
@@ -233,12 +233,12 @@ def pooled_mse_from_group_stats(ns: Sequence[int], variances: Sequence[float]) -
 
 
 def summarize_from_samples(samples: Mapping[str, Sequence[float]]) -> OneWaySummary:
-    """Create a OneWaySummary from raw per-variant observations.
+    """Create a ``OneWaySummary`` from raw observations.
 
     Parameters
     ----------
     samples:
-        Dict mapping variant label -> iterable of revenue/session observations.
+        Mapping from arm label to that arm's observations.
 
     Returns
     -------
@@ -246,14 +246,14 @@ def summarize_from_samples(samples: Mapping[str, Sequence[float]]) -> OneWaySumm
         Sample means, group sizes, pooled MSE, and pooled error degrees of freedom.
     """
     if len(samples) < 2:
-        raise ValueError("Need at least two variants for MCB.")
+        raise ValueError("Need at least two arms for MCB.")
 
     labels = tuple(samples.keys())
     arrays = [np.asarray(samples[label], dtype=float) for label in labels]
     ns = tuple(int(arr.size) for arr in arrays)
 
     if any(n < 2 for n in ns):
-        raise ValueError("Each variant must have at least two observations.")
+        raise ValueError("Each arm must have at least two observations.")
 
     means = tuple(float(arr.mean()) for arr in arrays)
     df = int(sum(n - 1 for n in ns))
@@ -290,14 +290,14 @@ def summarize_from_means_ns_and_mse(
     if len(means) != len(ns):
         raise ValueError("means and ns must have the same length.")
     if len(means) < 2:
-        raise ValueError("Need at least two variants for MCB.")
+        raise ValueError("Need at least two arms for MCB.")
     if any(n < 2 for n in ns):
-        raise ValueError("Each variant must have at least two observations.")
+        raise ValueError("Each arm must have at least two observations.")
     if mse <= 0:
         raise ValueError("mse must be positive.")
 
     if labels is None:
-        labels = tuple(f"Variant {i+1}" for i in range(len(means)))
+        labels = tuple(f"Arm {i+1}" for i in range(len(means)))
     labels = tuple(labels)
     if len(labels) != len(means):
         raise ValueError("labels must have the same length as means.")
@@ -311,11 +311,6 @@ def summarize_from_means_ns_and_mse(
 # -----------------------------------------------------------------------------
 def _positive_part(x: float | np.ndarray) -> float | np.ndarray:
     return np.maximum(x, 0.0)
-
-
-def _negative_part_magnitude(x: float | np.ndarray) -> float | np.ndarray:
-    # Hsu's x^- denotes the magnitude of the negative part, max(-x, 0).
-    return np.maximum(-np.asarray(x), 0.0)
 
 
 def _effective_nu(nu: float) -> float:
@@ -472,7 +467,8 @@ def constrained_critical_value(lambdas: tuple[float, ...], nu: float, alpha: flo
     Returns
     -------
     float
-        One-sided Dunnett-with-control critical value for the focal arm.
+        Critical value of Dunnett's one-sided comparison with a control, with
+        arm ``i`` as the control.
 
     Notes
     -----
@@ -510,7 +506,8 @@ def unconstrained_edwards_hsu_critical_value(lambdas: tuple[float, ...], nu: flo
     Returns
     -------
     float
-        Two-sided Dunnett-with-control critical value for the focal arm.
+        Critical value of Dunnett's two-sided comparison with a control, with
+        arm ``i`` as the control.
 
     Notes
     -----
@@ -549,8 +546,8 @@ def constrained_mcb(summary: OneWaySummary, alpha: float = 0.05) -> MCBResult:
 
     The target parameter family is ``theta_i = mu_i - max_{j != i} mu_j``.
 
-    A positive lower bound is impossible; each interval contains 0 when the
-    corresponding arm might still be best.
+    Every interval contains 0: a lower bound is never positive and an upper
+    bound is never negative. An upper bound of 0 rules the arm out as the best.
 
     Parameters
     ----------
@@ -619,21 +616,16 @@ def constrained_mcb(summary: OneWaySummary, alpha: float = 0.05) -> MCBResult:
         upper=tuple(d_plus),
         critical_values={summary.labels[i]: float(d_values[i]) for i in range(k)},
         candidate_best_set=tuple(summary.labels[i] for i in G),
-        notes=(
-            "Candidate-best set G consists of variants with strictly positive "
-            "upper constrained MCB bounds."
-        ),
+        notes="Candidate-best set G: the arms whose upper bound is positive.",
     )
 
 
 def unconstrained_mcb_edwards_hsu(summary: OneWaySummary, alpha: float = 0.05) -> MCBResult:
     """Unbalanced Edwards-Hsu unconstrained MCB.
 
-    The direct target parameter family is ``eta_i = mu_i - max_j mu_j``, which
-    is always ``<= 0`` and measures how far variant ``i`` is below the global
-    best.
-
-    This is the cleanest direct unconstrained MCB construction in Hsu's chapter.
+    The target parameter family is ``eta_i = mu_i - max_j mu_j``, which is at
+    most 0 and measures how far arm ``i`` is below the best. The intervals
+    need not contain 0.
 
     Parameters
     ----------
@@ -646,7 +638,7 @@ def unconstrained_mcb_edwards_hsu(summary: OneWaySummary, alpha: float = 0.05) -
     -------
     MCBResult
         Edwards-Hsu estimates, simultaneous bounds, critical values, and the
-        candidate-best screening set.
+        screening set S as the candidate-best set.
     """
     k = summary.k
     means = np.asarray(summary.means, dtype=float)
@@ -680,7 +672,7 @@ def unconstrained_mcb_edwards_hsu(summary: OneWaySummary, alpha: float = 0.05) -
                 x = means[i] - means[j]
                 se = _pairwise_se(summary, i, j)
                 L_ij.append(float(x - dabs_values[j] * se))
-                U_ij.append(float(-_negative_part_magnitude(x + dabs_values[j] * se)))
+                U_ij.append(float(min(0.0, x + dabs_values[j] * se)))
 
         lower.append(float(min(L_ij)))
         upper.append(float(max(U_ij)))
@@ -698,8 +690,8 @@ def unconstrained_mcb_edwards_hsu(summary: OneWaySummary, alpha: float = 0.05) -
         critical_values={summary.labels[i]: float(dabs_values[i]) for i in range(k)},
         candidate_best_set=tuple(summary.labels[i] for i in S),
         notes=(
-            "Candidate-best set S consists of variants whose one-variant-as-control "
-            "two-sided MCC upper screens remain positive against every rival."
+            "Candidate-best set S (the screening set): the arms that no other arm's "
+            "sample mean exceeds by |d|^i standard errors or more."
         ),
     )
 
@@ -747,8 +739,8 @@ def constrained_mcb_correct_useful_probability(
     """Hsu's probability of correct and useful inference for balanced constrained MCB.
 
     Computes Hsu (1996), Theorem C.2.1, Eq. (C.3): the probability that, in a
-    balanced experiment with ``n`` observations per arm, the pivot event from
-    the proof of Theorem 4.1.1 holds and the half-width
+    balanced experiment with ``n`` observations per arm, the correctness event
+    (the pivotal event in the proof of Theorem 4.1.1) occurs and the half-width
     ``d * sigma_hat * sqrt(2 / n)`` is below ``delta_star``. That event implies
     the constrained MCB intervals cover their targets and are that narrow, so
     the value is a conservative lower bound on the probability of correct and
@@ -769,9 +761,10 @@ def constrained_mcb_correct_useful_probability(
     n:
         Common per-arm sample size (balanced design).
     delta_star:
-        Indifference margin, in the units of the response.
+        Largest shortfall from the best that is acceptable in the selected
+        arm, in the units of the response.
     sigma:
-        Planning value (a guess) for the common standard deviation.
+        Planning value for the common standard deviation.
     alpha:
         Familywise error rate of the intervals.
 
@@ -789,9 +782,10 @@ def unconstrained_mcb_edwards_hsu_correct_useful_probability(
     """Hsu's probability of correct and useful inference for balanced Edwards-Hsu MCB.
 
     Hsu (1996), Appendix C, sizes Edwards-Hsu MCB with the two-sided MCC
-    computation, Eq. (C.5): the probability that the pivot event of Theorem
-    4.2.3 holds and the half-width ``|d| * sigma_hat * sqrt(2 / n)`` is below
-    ``delta_star``. That event implies the Edwards-Hsu intervals cover their
+    computation, Eq. (C.5): the probability that the correctness event (the
+    pivotal event in the proof of Theorem 4.2.3) occurs and the half-width
+    ``|d| * sigma_hat * sqrt(2 / n)`` is below ``delta_star``. That event
+    implies the Edwards-Hsu intervals cover their
     targets and are that narrow, so the value is a conservative lower bound on
     the probability of correct and useful inference. When the event happens:
 
@@ -812,9 +806,10 @@ def unconstrained_mcb_edwards_hsu_correct_useful_probability(
     n:
         Common per-arm sample size (balanced design).
     delta_star:
-        Indifference margin, in the units of the response.
+        Largest shortfall from the best that is acceptable in the selected
+        arm, in the units of the response.
     sigma:
-        Planning value (a guess) for the common standard deviation.
+        Planning value for the common standard deviation.
     alpha:
         Familywise error rate of the intervals.
 
@@ -880,9 +875,10 @@ def constrained_mcb_sample_size(
     k:
         Number of arms.
     delta_star:
-        Indifference margin, in the units of the response.
+        Largest shortfall from the best that is acceptable in the selected
+        arm, in the units of the response.
     sigma:
-        Planning value (a guess) for the common standard deviation.
+        Planning value for the common standard deviation.
     alpha:
         Familywise error rate of the intervals.
     target:
@@ -915,9 +911,10 @@ def unconstrained_mcb_edwards_hsu_sample_size(
     k:
         Number of arms.
     delta_star:
-        Indifference margin, in the units of the response.
+        Largest shortfall from the best that is acceptable in the selected
+        arm, in the units of the response.
     sigma:
-        Planning value (a guess) for the common standard deviation.
+        Planning value for the common standard deviation.
     alpha:
         Familywise error rate of the intervals.
     target:

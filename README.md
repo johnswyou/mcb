@@ -27,7 +27,7 @@ from mcb import constrained_mcb, pooled_mse_from_group_stats, summarize_from_mea
 
 mse = pooled_mse_from_group_stats(
     ns=[103, 31, 122],
-    variances=[82.52**2, 82.52**2, 82.52**2],
+    variances=[86.0**2, 67.0**2, 83.0**2],
 )
 
 summary = summarize_from_means_ns_and_mse(

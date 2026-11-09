@@ -44,17 +44,17 @@ def test_pooled_mse_from_group_stats_matches_raw_samples() -> None:
         (
             pooled_mse_from_samples,
             {"samples": {"A": [1.0, 2.0]}},
-            "Need at least two variants to compute pooled MSE",
+            "Need at least two arms to compute pooled MSE",
         ),
         (
             pooled_mse_from_samples,
             {"samples": {"A": [1.0, 2.0], "B": [3.0]}},
-            "Each variant must have at least two observations",
+            "Each arm must have at least two observations",
         ),
         (
             pooled_mse_from_group_stats,
             {"ns": [3], "variances": [1.0]},
-            "Need at least two variants to compute pooled MSE",
+            "Need at least two arms to compute pooled MSE",
         ),
         (
             pooled_mse_from_group_stats,
@@ -64,7 +64,7 @@ def test_pooled_mse_from_group_stats_matches_raw_samples() -> None:
         (
             pooled_mse_from_group_stats,
             {"ns": [1, 3], "variances": [1.0, 1.0]},
-            "Each variant must have at least two observations",
+            "Each arm must have at least two observations",
         ),
         (
             pooled_mse_from_group_stats,
@@ -96,9 +96,9 @@ def test_summarize_from_samples_computes_pooled_summary() -> None:
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [
-        ({"means": [1.0], "ns": [3], "mse": 1.0}, "Need at least two variants"),
+        ({"means": [1.0], "ns": [3], "mse": 1.0}, "Need at least two arms"),
         ({"means": [1.0, 2.0], "ns": [3], "mse": 1.0}, "means and ns must have the same length"),
-        ({"means": [1.0, 2.0], "ns": [1, 3], "mse": 1.0}, "Each variant must have at least two observations"),
+        ({"means": [1.0, 2.0], "ns": [1, 3], "mse": 1.0}, "Each arm must have at least two observations"),
         ({"means": [1.0, 2.0], "ns": [3, 3], "mse": 0.0}, "mse must be positive"),
         (
             {"means": [1.0, 2.0], "ns": [3, 3], "mse": 1.0, "labels": ["A"]},
@@ -189,6 +189,8 @@ def test_unconstrained_sat_example_matches_hsu_infinite_df_values() -> None:
     )
     assert result.lower == pytest.approx((-41.31, -22.68, -84.74), abs=0.03)
     assert result.upper == pytest.approx((0.0, 0.0, -22.65), abs=0.03)
+    # A zero bound must be +0.0; -0.0 prints as "-0.00".
+    assert not any(u == 0.0 and math.copysign(1.0, u) < 0 for u in result.upper)
     assert result.candidate_best_set == ("Computer science", "Engineering")
 
 
